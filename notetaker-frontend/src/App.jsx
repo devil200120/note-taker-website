@@ -1,0 +1,312 @@
+import React, { useState, useEffect } from "react";
+import Header from "./components/Header";
+import Sidebar from "./components/Sidebar";
+import NoteInput from "./components/NoteInput";
+import NotesList from "./components/NotesList";
+import FloatingHearts from "./components/FloatingHearts";
+import CatGallery from "./components/CatGallery";
+import LoveMessage from "./components/LoveMessage";
+import MoodTracker from "./components/MoodTracker";
+import LoveLetters from "./components/LoveLetters";
+import Memories from "./components/Memories";
+import TodoList from "./components/TodoList";
+import QuoteOfDay from "./components/QuoteOfDay";
+import MusicPlayer from "./components/MusicPlayer";
+import SearchBar from "./components/SearchBar";
+import CategoryFilter from "./components/CategoryFilter";
+import Calendar from "./components/Calendar";
+import ThemeSelector from "./components/ThemeSelector";
+import WelcomeScreen from "./components/WelcomeScreen";
+import StatsCard from "./components/StatsCard";
+
+function App() {
+  const [notes, setNotes] = useState(() => {
+    const savedNotes = localStorage.getItem("sradha-notes");
+    return savedNotes ? JSON.parse(savedNotes) : [];
+  });
+  const [showLoveMessage, setShowLoveMessage] = useState(true);
+  const [currentSection, setCurrentSection] = useState("notes");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem("sradha-theme") || "rose";
+  });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(() => {
+    return !localStorage.getItem("sradha-welcomed");
+  });
+
+  const categories = [
+    { id: "all", name: "All Notes", emoji: "📚", color: "rose" },
+    { id: "personal", name: "Personal", emoji: "💭", color: "purple" },
+    { id: "study", name: "Study", emoji: "📖", color: "blue" },
+    { id: "dreams", name: "Dreams", emoji: "✨", color: "yellow" },
+    { id: "memories", name: "Memories", emoji: "💝", color: "pink" },
+    { id: "ideas", name: "Ideas", emoji: "💡", color: "green" },
+  ];
+
+  const themes = {
+    rose: {
+      primary: "from-rose-100 to-pink-200",
+      accent: "rose",
+      bg: "bg-gradient-to-br from-rose-50 via-pink-50 to-purple-100",
+    },
+    lavender: {
+      primary: "from-purple-100 to-violet-200",
+      accent: "purple",
+      bg: "bg-gradient-to-br from-purple-50 via-violet-50 to-pink-100",
+    },
+    ocean: {
+      primary: "from-blue-100 to-cyan-200",
+      accent: "blue",
+      bg: "bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-100",
+    },
+    sunset: {
+      primary: "from-orange-100 to-rose-200",
+      accent: "orange",
+      bg: "bg-gradient-to-br from-orange-50 via-rose-50 to-pink-100",
+    },
+  };
+
+  useEffect(() => {
+    localStorage.setItem("sradha-notes", JSON.stringify(notes));
+  }, [notes]);
+
+  useEffect(() => {
+    localStorage.setItem("sradha-theme", theme);
+  }, [theme]);
+
+  const addNote = (noteData) => {
+    const newNote = {
+      id: Date.now(),
+      ...noteData,
+      createdAt: new Date().toISOString(),
+      isLoved: false,
+      isPinned: false,
+      isArchived: false,
+    };
+    setNotes([newNote, ...notes]);
+  };
+
+  const deleteNote = (id) => {
+    setNotes(notes.filter((note) => note.id !== id));
+  };
+
+  const toggleLove = (id) => {
+    setNotes(
+      notes.map((note) =>
+        note.id === id ? { ...note, isLoved: !note.isLoved } : note
+      )
+    );
+  };
+
+  const togglePin = (id) => {
+    setNotes(
+      notes.map((note) =>
+        note.id === id ? { ...note, isPinned: !note.isPinned } : note
+      )
+    );
+  };
+
+  const toggleArchive = (id) => {
+    setNotes(
+      notes.map((note) =>
+        note.id === id ? { ...note, isArchived: !note.isArchived } : note
+      )
+    );
+  };
+
+  const editNote = (id, updatedData) => {
+    setNotes(
+      notes.map((note) =>
+        note.id === id
+          ? { ...note, ...updatedData, updatedAt: new Date().toISOString() }
+          : note
+      )
+    );
+  };
+
+  const duplicateNote = (id) => {
+    const noteToDuplicate = notes.find((note) => note.id === id);
+    if (noteToDuplicate) {
+      const newNote = {
+        ...noteToDuplicate,
+        id: Date.now(),
+        content: noteToDuplicate.content + " (Copy)",
+        createdAt: new Date().toISOString(),
+        isPinned: false,
+      };
+      setNotes([newNote, ...notes]);
+    }
+  };
+
+  const filteredNotes = notes
+    .filter((note) => !note.isArchived)
+    .filter((note) =>
+      selectedCategory === "all" ? true : note.category === selectedCategory
+    )
+    .filter(
+      (note) =>
+        note.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        note.title?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+  const archivedNotes = notes.filter((note) => note.isArchived);
+
+  const handleWelcomeComplete = () => {
+    localStorage.setItem("sradha-welcomed", "true");
+    setShowWelcome(false);
+  };
+
+  const renderSection = () => {
+    switch (currentSection) {
+      case "notes":
+        return (
+          <>
+            <div className="max-w-4xl mx-auto px-4 py-6">
+              <SearchBar
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+              />
+              <CategoryFilter
+                categories={categories}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+              />
+            </div>
+            <div className="max-w-4xl mx-auto px-4 py-4">
+              <NoteInput onAddNote={addNote} categories={categories} />
+            </div>
+            <div className="max-w-6xl mx-auto px-4 pb-20">
+              <NotesList
+                notes={filteredNotes}
+                onDelete={deleteNote}
+                onToggleLove={toggleLove}
+                onTogglePin={togglePin}
+                onToggleArchive={toggleArchive}
+                onEdit={editNote}
+                onDuplicate={duplicateNote}
+              />
+            </div>
+          </>
+        );
+      case "cats":
+        return <CatGallery />;
+      case "mood":
+        return <MoodTracker />;
+      case "letters":
+        return <LoveLetters />;
+      case "memories":
+        return <Memories />;
+      case "todos":
+        return <TodoList />;
+      case "calendar":
+        return <Calendar />;
+      case "archived":
+        return (
+          <div className="max-w-6xl mx-auto px-4 pb-20">
+            <div className="text-center mb-8">
+              <h2 className="font-romantic text-4xl gradient-text">
+                📦 Archived Notes
+              </h2>
+              <p className="font-sweet text-gray-500 mt-2">
+                Your safely stored memories
+              </p>
+            </div>
+            <NotesList
+              notes={archivedNotes}
+              onDelete={deleteNote}
+              onToggleLove={toggleLove}
+              onTogglePin={togglePin}
+              onToggleArchive={toggleArchive}
+              onEdit={editNote}
+              onDuplicate={duplicateNote}
+            />
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  if (showWelcome) {
+    return <WelcomeScreen onComplete={handleWelcomeComplete} />;
+  }
+
+  return (
+    <div
+      className={`min-h-screen relative overflow-hidden ${themes[theme].bg}`}
+    >
+      {/* Floating Hearts Background */}
+      <FloatingHearts theme={theme} />
+
+      {/* Love Message Modal */}
+      {showLoveMessage && (
+        <LoveMessage onClose={() => setShowLoveMessage(false)} />
+      )}
+
+      {/* Music Player - Fixed Position */}
+      <MusicPlayer />
+
+      {/* Theme Selector - Fixed Position */}
+      <ThemeSelector theme={theme} setTheme={setTheme} themes={themes} />
+
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="fixed top-4 left-4 z-50 lg:hidden bg-white/80 backdrop-blur-sm p-3 rounded-full shadow-lg hover:scale-110 transition-transform"
+      >
+        <span className="text-2xl">{sidebarOpen ? "✕" : "☰"}</span>
+      </button>
+
+      {/* Sidebar */}
+      <Sidebar
+        currentSection={currentSection}
+        setCurrentSection={setCurrentSection}
+        isOpen={sidebarOpen}
+        setIsOpen={setSidebarOpen}
+        notesCount={notes.filter((n) => !n.isArchived).length}
+        archivedCount={archivedNotes.length}
+      />
+
+      {/* Main Content */}
+      <div className="lg:ml-72 relative z-10 min-h-screen">
+        {/* Header */}
+        <Header theme={theme} />
+
+        {/* Quote of the Day */}
+        <QuoteOfDay />
+
+        {/* Stats Cards */}
+        <StatsCard notes={notes} />
+
+        {/* Dynamic Section Content */}
+        {renderSection()}
+
+        {/* Footer */}
+        <footer className="text-center py-8 text-rose-400 font-sweet border-t border-rose-100 mt-12 bg-white/30 backdrop-blur-sm">
+          <p className="flex items-center justify-center gap-2">
+            Made with <span className="text-2xl animate-heart-beat">💖</span>{" "}
+            for Sradha Priyadarshini
+          </p>
+          <p className="text-sm mt-2 opacity-70">
+            You are the most beautiful thing that ever happened to me ✨
+          </p>
+          <div className="flex justify-center gap-4 mt-4">
+            <span className="text-2xl animate-bounce-slow">🐱</span>
+            <span className="text-2xl animate-float">💕</span>
+            <span className="text-2xl animate-wiggle">🌸</span>
+            <span className="text-2xl animate-float-delayed">✨</span>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+export default App;
