@@ -156,7 +156,7 @@ function App() {
   const toggleLove = async (id) => {
     const note = notes.find((n) => n._id === id || n.id === id);
     if (!note) return;
-    
+
     try {
       await notesApi.update(id, { isLoved: !note.isLoved });
     } catch (error) {
@@ -164,7 +164,9 @@ function App() {
     }
     setNotes(
       notes.map((note) =>
-        (note._id === id || note.id === id) ? { ...note, isLoved: !note.isLoved } : note
+        note._id === id || note.id === id
+          ? { ...note, isLoved: !note.isLoved }
+          : note
       )
     );
   };
@@ -180,7 +182,9 @@ function App() {
     }
     setNotes(
       notes.map((note) =>
-        (note._id === id || note.id === id) ? { ...note, isPinned: !note.isPinned } : note
+        note._id === id || note.id === id
+          ? { ...note, isPinned: !note.isPinned }
+          : note
       )
     );
   };
@@ -196,7 +200,9 @@ function App() {
     }
     setNotes(
       notes.map((note) =>
-        (note._id === id || note.id === id) ? { ...note, isArchived: !note.isArchived } : note
+        note._id === id || note.id === id
+          ? { ...note, isArchived: !note.isArchived }
+          : note
       )
     );
   };
@@ -209,7 +215,7 @@ function App() {
     }
     setNotes(
       notes.map((note) =>
-        (note._id === id || note.id === id)
+        note._id === id || note.id === id
           ? { ...note, ...updatedData, updatedAt: new Date().toISOString() }
           : note
       )
@@ -217,7 +223,9 @@ function App() {
   };
 
   const duplicateNote = async (id) => {
-    const noteToDuplicate = notes.find((note) => note._id === id || note.id === id);
+    const noteToDuplicate = notes.find(
+      (note) => note._id === id || note.id === id
+    );
     if (noteToDuplicate) {
       const duplicateData = {
         content: noteToDuplicate.content + " (Copy)",
@@ -367,7 +375,9 @@ function App() {
           {!isViewingPdf && <MusicPlayer />}
 
           {/* Theme Selector - Fixed Position */}
-          {!isViewingPdf && <ThemeSelector theme={theme} setTheme={setTheme} themes={themes} />}
+          {!isViewingPdf && (
+            <ThemeSelector theme={theme} setTheme={setTheme} themes={themes} />
+          )}
 
           {/* Mobile Menu Button - Hide when viewing PDF */}
           {!isViewingPdf && (
@@ -394,7 +404,11 @@ function App() {
           )}
 
           {/* Main Content */}
-          <div className={`relative z-10 min-h-screen transition-all duration-300 ${sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"}`}>
+          <div
+            className={`relative z-10 min-h-screen transition-all duration-300 ${
+              sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
+            }`}
+          >
             {/* Header */}
             <Header theme={theme} />
 
@@ -410,8 +424,9 @@ function App() {
             {/* Footer */}
             <footer className="text-center py-8 text-rose-400 font-sweet border-t border-rose-100 mt-12 bg-white/30 backdrop-blur-sm">
               <p className="flex items-center justify-center gap-2">
-                Made with <span className="text-2xl animate-heart-beat">💖</span>{" "}
-                for Sradha Priyadarshini
+                Made with{" "}
+                <span className="text-2xl animate-heart-beat">💖</span> for
+                Sradha Priyadarshini
               </p>
               <p className="text-sm mt-2 opacity-70">
                 You are the most beautiful thing that ever happened to me ✨

@@ -87,18 +87,24 @@ const LoveLetters = () => {
       if (response.success) {
         setLetters(
           letters.map((l) =>
-            (l._id === id || l.id === id) ? { ...l, hearts: l.hearts + 1 } : l
+            l._id === id || l.id === id ? { ...l, hearts: l.hearts + 1 } : l
           )
         );
-        if (selectedLetter && (selectedLetter._id === id || selectedLetter.id === id)) {
-          setSelectedLetter({ ...selectedLetter, hearts: selectedLetter.hearts + 1 });
+        if (
+          selectedLetter &&
+          (selectedLetter._id === id || selectedLetter.id === id)
+        ) {
+          setSelectedLetter({
+            ...selectedLetter,
+            hearts: selectedLetter.hearts + 1,
+          });
         }
       }
     } catch (error) {
       console.error("Failed to add heart:", error);
       setLetters(
         letters.map((l) =>
-          (l._id === id || l.id === id) ? { ...l, hearts: l.hearts + 1 } : l
+          l._id === id || l.id === id ? { ...l, hearts: l.hearts + 1 } : l
         )
       );
     }
@@ -110,7 +116,9 @@ const LoveLetters = () => {
         await lettersApi.markAsRead(letter._id || letter.id);
         setLetters(
           letters.map((l) =>
-            (l._id === letter._id || l.id === letter.id) ? { ...l, isRead: true } : l
+            l._id === letter._id || l.id === letter.id
+              ? { ...l, isRead: true }
+              : l
           )
         );
       }
@@ -298,7 +306,9 @@ With all my love..."
               </span>
             </button>
             <button
-              onClick={() => deleteLetter(selectedLetter._id || selectedLetter.id)}
+              onClick={() =>
+                deleteLetter(selectedLetter._id || selectedLetter.id)
+              }
               className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-400 transition-colors"
             >
               <span>🗑️</span>
@@ -314,7 +324,9 @@ With all my love..."
           {isLoading ? (
             <div className="text-center py-16 glass rounded-3xl animate-fade-in">
               <div className="w-8 h-8 border-4 border-rose-200 border-t-rose-500 rounded-full animate-spin mx-auto mb-4" />
-              <p className="font-sweet text-gray-500">Loading your letters...</p>
+              <p className="font-sweet text-gray-500">
+                Loading your letters...
+              </p>
             </div>
           ) : letters.length === 0 ? (
             <div className="text-center py-16 glass rounded-3xl animate-fade-in">

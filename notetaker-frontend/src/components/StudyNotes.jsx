@@ -219,7 +219,7 @@ const StudyNotes = ({ onPdfViewChange }) => {
         studyApi.getSections(),
         studyApi.getPdfs(),
       ]);
-      
+
       if (sectionsRes.success) {
         setSections(sectionsRes.data);
       }
@@ -293,7 +293,7 @@ const StudyNotes = ({ onPdfViewChange }) => {
           // 30-100% for uploading
           setUploadProgress(30 + Math.round(progress * 0.7));
         });
-        
+
         if (response.success) {
           setPdfs((prev) => [...prev, response.data]);
           setUploadStatus(`✓ ${file.name} uploaded!`);
@@ -312,7 +312,10 @@ const StudyNotes = ({ onPdfViewChange }) => {
           isFavorite: false,
         };
         setPdfs((prev) => [...prev, newPdf]);
-        localStorage.setItem("sradha-study-pdfs", JSON.stringify([...pdfs, newPdf]));
+        localStorage.setItem(
+          "sradha-study-pdfs",
+          JSON.stringify([...pdfs, newPdf])
+        );
       }
 
       // Brief pause between files
@@ -352,7 +355,10 @@ const StudyNotes = ({ onPdfViewChange }) => {
           color: newSection.color,
         };
         setSections([...sections, section]);
-        localStorage.setItem("sradha-study-sections", JSON.stringify([...sections, section]));
+        localStorage.setItem(
+          "sradha-study-sections",
+          JSON.stringify([...sections, section])
+        );
       }
       setNewSection({ name: "", emoji: "📚", color: "rose" });
       setIsAddingSection(false);
@@ -388,7 +394,10 @@ const StudyNotes = ({ onPdfViewChange }) => {
       }
       setSections(sections.filter((s) => (s._id || s.id) !== sectionId));
       setPdfs(pdfs.filter((p) => p.sectionId !== sectionId));
-      if (selectedSection && (selectedSection._id || selectedSection.id) === sectionId) {
+      if (
+        selectedSection &&
+        (selectedSection._id || selectedSection.id) === sectionId
+      ) {
         setSelectedSection(null);
       }
     } else if (deleteDialog.type === "pdf") {
@@ -417,7 +426,9 @@ const StudyNotes = ({ onPdfViewChange }) => {
     }
     setPdfs(
       pdfs.map((p) =>
-        (p._id === pdfId || p.id === pdfId) ? { ...p, isFavorite: !p.isFavorite } : p
+        p._id === pdfId || p.id === pdfId
+          ? { ...p, isFavorite: !p.isFavorite }
+          : p
       )
     );
   };
@@ -430,7 +441,7 @@ const StudyNotes = ({ onPdfViewChange }) => {
     }
     setPdfs(
       pdfs.map((p) =>
-        (p._id === pdfId || p.id === pdfId)
+        p._id === pdfId || p.id === pdfId
           ? {
               ...p,
               lastPage: page,
@@ -447,21 +458,24 @@ const StudyNotes = ({ onPdfViewChange }) => {
       .filter((p) => {
         // Handle both string and ObjectId comparison
         const pSectionId = p.sectionId?._id || p.sectionId;
-        return pSectionId === sectionId || String(pSectionId) === String(sectionId);
+        return (
+          pSectionId === sectionId || String(pSectionId) === String(sectionId)
+        );
       })
       .filter(
         (p) =>
-          !searchQuery || 
+          !searchQuery ||
           p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (p.fileName && p.fileName.toLowerCase().includes(searchQuery.toLowerCase()))
+          (p.fileName &&
+            p.fileName.toLowerCase().includes(searchQuery.toLowerCase()))
       );
   };
 
   // Filter sections by search query
   const getFilteredSections = () => {
     if (!searchQuery) return sections;
-    return sections.filter(
-      (s) => s.name.toLowerCase().includes(searchQuery.toLowerCase())
+    return sections.filter((s) =>
+      s.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   };
 
@@ -471,20 +485,21 @@ const StudyNotes = ({ onPdfViewChange }) => {
     return pdfs.filter(
       (p) =>
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.fileName && p.fileName.toLowerCase().includes(searchQuery.toLowerCase()))
+        (p.fileName &&
+          p.fileName.toLowerCase().includes(searchQuery.toLowerCase()))
     );
   };
 
   // Open PDF with full data (including fileData)
   const openPdf = async (pdf) => {
     const pdfId = pdf._id || pdf.id;
-    
+
     // If we already have fileData, just open it
     if (pdf.fileData) {
       setSelectedPdf(pdf);
       return;
     }
-    
+
     // Otherwise, fetch the full PDF from API
     try {
       const response = await studyApi.getPdf(pdfId);
@@ -609,7 +624,9 @@ const StudyNotes = ({ onPdfViewChange }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {getSearchResults().map((pdf) => {
               const section = sections.find(
-                (s) => (s._id || s.id) === pdf.sectionId || String(s._id || s.id) === String(pdf.sectionId)
+                (s) =>
+                  (s._id || s.id) === pdf.sectionId ||
+                  String(s._id || s.id) === String(pdf.sectionId)
               );
               return (
                 <div
@@ -664,7 +681,11 @@ const StudyNotes = ({ onPdfViewChange }) => {
                     {selectedSection.name}
                   </h3>
                   <p className="font-sweet text-gray-500 text-xs sm:text-sm">
-                    {getSectionPdfs(selectedSection._id || selectedSection.id).length} PDFs
+                    {
+                      getSectionPdfs(selectedSection._id || selectedSection.id)
+                        .length
+                    }{" "}
+                    PDFs
                   </p>
                 </div>
               </div>
@@ -696,7 +717,7 @@ const StudyNotes = ({ onPdfViewChange }) => {
                     File {currentFileIndex} of {totalFiles}
                   </p>
                 )}
-                
+
                 {/* Progress bar */}
                 <div className="h-3 bg-rose-100 rounded-full overflow-hidden shadow-inner">
                   <div
@@ -707,29 +728,40 @@ const StudyNotes = ({ onPdfViewChange }) => {
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shine" />
                   </div>
                 </div>
-                
+
                 {/* Progress percentage */}
                 <div className="flex justify-between items-center mt-2">
                   <p className="font-sweet text-sm text-rose-400">
-                    {uploadStatus || `Uploading... ${Math.round(uploadProgress)}%`}
+                    {uploadStatus ||
+                      `Uploading... ${Math.round(uploadProgress)}%`}
                   </p>
                   <span className="font-sweet text-sm font-semibold text-rose-500">
                     {Math.round(uploadProgress)}%
                   </span>
                 </div>
-                
+
                 {/* Animated loading indicator */}
                 <div className="flex justify-center gap-1 mt-3">
-                  <span className="w-2 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-2 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <span
+                    className="w-2 h-2 bg-rose-400 rounded-full animate-bounce"
+                    style={{ animationDelay: "0ms" }}
+                  />
+                  <span
+                    className="w-2 h-2 bg-pink-400 rounded-full animate-bounce"
+                    style={{ animationDelay: "150ms" }}
+                  />
+                  <span
+                    className="w-2 h-2 bg-rose-400 rounded-full animate-bounce"
+                    style={{ animationDelay: "300ms" }}
+                  />
                 </div>
               </div>
             )}
           </div>
 
           {/* PDFs Grid/List */}
-          {getSectionPdfs(selectedSection._id || selectedSection.id).length === 0 ? (
+          {getSectionPdfs(selectedSection._id || selectedSection.id).length ===
+          0 ? (
             <div className="text-center py-10 sm:py-16 glass rounded-2xl sm:rounded-3xl animate-fade-in">
               <span className="text-4xl sm:text-6xl block mb-4">📄</span>
               <h3 className="font-romantic text-xl sm:text-2xl text-rose-400 mb-3">
@@ -747,130 +779,138 @@ const StudyNotes = ({ onPdfViewChange }) => {
             </div>
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {getSectionPdfs(selectedSection._id || selectedSection.id).map((pdf, index) => {
-                const pdfId = pdf._id || pdf.id;
-                return (
-                <div
-                  key={pdfId}
-                  className="glass rounded-xl sm:rounded-2xl p-3 sm:p-4 hover:scale-[1.02] transition-all cursor-pointer group animate-scale-in"
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                  onClick={() => openPdf(pdf)}
-                >
-                  <div className="relative mb-3 sm:mb-4">
-                    <div className="w-full h-24 sm:h-32 bg-gradient-to-br from-rose-100 to-pink-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <span className="text-4xl sm:text-5xl">📄</span>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFavorite(pdfId);
-                      }}
-                      className="absolute top-2 right-2 text-xl sm:text-2xl"
+              {getSectionPdfs(selectedSection._id || selectedSection.id).map(
+                (pdf, index) => {
+                  const pdfId = pdf._id || pdf.id;
+                  return (
+                    <div
+                      key={pdfId}
+                      className="glass rounded-xl sm:rounded-2xl p-3 sm:p-4 hover:scale-[1.02] transition-all cursor-pointer group animate-scale-in"
+                      style={{ animationDelay: `${index * 0.05}s` }}
+                      onClick={() => openPdf(pdf)}
                     >
-                      {pdf.isFavorite ? "⭐" : "☆"}
-                    </button>
-                    {pdf.lastPage > 1 && pdf.totalPages && (
-                      <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full font-sweet">
-                        Page {pdf.lastPage}/{pdf.totalPages}
+                      <div className="relative mb-3 sm:mb-4">
+                        <div className="w-full h-24 sm:h-32 bg-gradient-to-br from-rose-100 to-pink-100 rounded-lg sm:rounded-xl flex items-center justify-center">
+                          <span className="text-4xl sm:text-5xl">📄</span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(pdfId);
+                          }}
+                          className="absolute top-2 right-2 text-xl sm:text-2xl"
+                        >
+                          {pdf.isFavorite ? "⭐" : "☆"}
+                        </button>
+                        {pdf.lastPage > 1 && pdf.totalPages && (
+                          <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full font-sweet">
+                            Page {pdf.lastPage}/{pdf.totalPages}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <h4 className="font-sweet font-semibold text-gray-700 truncate text-sm sm:text-base">
-                    {pdf.name}
-                  </h4>
-                  <p className="font-sweet text-gray-400 text-xs mt-1">
-                    {pdf.size} • {formatDate(pdf.uploadedAt || pdf.createdAt)}
-                  </p>
-                  <div className="flex justify-between items-center mt-2 sm:mt-3">
-                    <span className="text-xs text-rose-400 font-sweet">
-                      {pdf.lastReadAt
-                        ? `Last read: ${formatDate(pdf.lastReadAt)}`
-                        : "Not read yet"}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        confirmDeletePdf(pdf);
-                      }}
-                      className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all p-1"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              );
-              })}
+                      <h4 className="font-sweet font-semibold text-gray-700 truncate text-sm sm:text-base">
+                        {pdf.name}
+                      </h4>
+                      <p className="font-sweet text-gray-400 text-xs mt-1">
+                        {pdf.size} •{" "}
+                        {formatDate(pdf.uploadedAt || pdf.createdAt)}
+                      </p>
+                      <div className="flex justify-between items-center mt-2 sm:mt-3">
+                        <span className="text-xs text-rose-400 font-sweet">
+                          {pdf.lastReadAt
+                            ? `Last read: ${formatDate(pdf.lastReadAt)}`
+                            : "Not read yet"}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            confirmDeletePdf(pdf);
+                          }}
+                          className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all p-1"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+              )}
             </div>
           ) : (
             <div className="space-y-2 sm:space-y-3">
-              {getSectionPdfs(selectedSection._id || selectedSection.id).map((pdf, index) => {
-                const pdfId = pdf._id || pdf.id;
-                return (
-                <div
-                  key={pdfId}
-                  className="glass rounded-lg sm:rounded-xl p-3 sm:p-4 flex items-center gap-3 sm:gap-4 hover:scale-[1.01] transition-all cursor-pointer group animate-scale-in"
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                  onClick={() => openPdf(pdf)}
-                >
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-rose-100 to-pink-100 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl sm:text-2xl">📄</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-sweet font-semibold text-gray-700 truncate text-sm sm:text-base">
-                      {pdf.name}
-                    </h4>
-                    <p className="font-sweet text-gray-400 text-xs">
-                      {pdf.size} • {formatDate(pdf.uploadedAt || pdf.createdAt)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {pdf.lastPage > 1 && pdf.totalPages && (
-                      <span className="text-xs bg-rose-100 text-rose-500 px-2 py-1 rounded-full font-sweet">
-                        {pdf.lastPage}/{pdf.totalPages}
-                      </span>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFavorite(pdfId);
-                      }}
-                      className="text-xl"
+              {getSectionPdfs(selectedSection._id || selectedSection.id).map(
+                (pdf, index) => {
+                  const pdfId = pdf._id || pdf.id;
+                  return (
+                    <div
+                      key={pdfId}
+                      className="glass rounded-lg sm:rounded-xl p-3 sm:p-4 flex items-center gap-3 sm:gap-4 hover:scale-[1.01] transition-all cursor-pointer group animate-scale-in"
+                      style={{ animationDelay: `${index * 0.05}s` }}
+                      onClick={() => openPdf(pdf)}
                     >
-                      {pdf.isFavorite ? "⭐" : "☆"}
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        confirmDeletePdf(pdf);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              );
-              })}
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-rose-100 to-pink-100 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                        <span className="text-xl sm:text-2xl">📄</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-sweet font-semibold text-gray-700 truncate text-sm sm:text-base">
+                          {pdf.name}
+                        </h4>
+                        <p className="font-sweet text-gray-400 text-xs">
+                          {pdf.size} •{" "}
+                          {formatDate(pdf.uploadedAt || pdf.createdAt)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {pdf.lastPage > 1 && pdf.totalPages && (
+                          <span className="text-xs bg-rose-100 text-rose-500 px-2 py-1 rounded-full font-sweet">
+                            {pdf.lastPage}/{pdf.totalPages}
+                          </span>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(pdfId);
+                          }}
+                          className="text-xl"
+                        >
+                          {pdf.isFavorite ? "⭐" : "☆"}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            confirmDeletePdf(pdf);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+              )}
             </div>
           )}
         </div>
       ) : (
         <>
           {/* No results message */}
-          {searchQuery && getFilteredSections().length === 0 && getSearchResults().length === 0 && (
-            <div className="text-center py-10 glass rounded-2xl mb-4 animate-fade-in">
-              <span className="text-4xl block mb-3">🔍</span>
-              <p className="font-sweet text-gray-500">
-                No sections or PDFs found for "{searchQuery}"
-              </p>
-              <button
-                onClick={() => setSearchQuery("")}
-                className="mt-3 text-rose-400 font-sweet hover:underline"
-              >
-                Clear search
-              </button>
-            </div>
-          )}
+          {searchQuery &&
+            getFilteredSections().length === 0 &&
+            getSearchResults().length === 0 && (
+              <div className="text-center py-10 glass rounded-2xl mb-4 animate-fade-in">
+                <span className="text-4xl block mb-3">🔍</span>
+                <p className="font-sweet text-gray-500">
+                  No sections or PDFs found for "{searchQuery}"
+                </p>
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="mt-3 text-rose-400 font-sweet hover:underline"
+                >
+                  Clear search
+                </button>
+              </div>
+            )}
 
           {/* Sections Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -1029,12 +1069,16 @@ const StudyNotes = ({ onPdfViewChange }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                 {pdfs
                   .sort(
-                    (a, b) => new Date(b.uploadedAt || b.createdAt) - new Date(a.uploadedAt || a.createdAt)
+                    (a, b) =>
+                      new Date(b.uploadedAt || b.createdAt) -
+                      new Date(a.uploadedAt || a.createdAt)
                   )
                   .slice(0, 4)
                   .map((pdf) => {
                     const section = sections.find(
-                      (s) => (s._id || s.id) === pdf.sectionId || String(s._id || s.id) === String(pdf.sectionId)
+                      (s) =>
+                        (s._id || s.id) === pdf.sectionId ||
+                        String(s._id || s.id) === String(pdf.sectionId)
                     );
                     return (
                       <div
@@ -1074,7 +1118,9 @@ const StudyNotes = ({ onPdfViewChange }) => {
                   .filter((p) => p.isFavorite)
                   .map((pdf) => {
                     const section = sections.find(
-                      (s) => (s._id || s.id) === pdf.sectionId || String(s._id || s.id) === String(pdf.sectionId)
+                      (s) =>
+                        (s._id || s.id) === pdf.sectionId ||
+                        String(s._id || s.id) === String(pdf.sectionId)
                     );
                     return (
                       <div

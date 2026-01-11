@@ -95,7 +95,9 @@ const TodoList = () => {
       if (response.success) {
         setTodos(
           todos.map((todo) =>
-            (todo._id === id || todo.id === id) ? { ...todo, completed: !todo.completed } : todo
+            todo._id === id || todo.id === id
+              ? { ...todo, completed: !todo.completed }
+              : todo
           )
         );
       }
@@ -103,7 +105,9 @@ const TodoList = () => {
       console.error("Failed to toggle todo:", error);
       setTodos(
         todos.map((todo) =>
-          (todo._id === id || todo.id === id) ? { ...todo, completed: !todo.completed } : todo
+          todo._id === id || todo.id === id
+            ? { ...todo, completed: !todo.completed }
+            : todo
         )
       );
     }

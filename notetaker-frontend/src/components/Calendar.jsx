@@ -118,7 +118,7 @@ const Calendar = () => {
       const dateStr = `${selectedDate.getFullYear()}-${String(
         selectedDate.getMonth() + 1
       ).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
-      
+
       try {
         const response = await eventsApi.create({
           ...newEvent,
@@ -135,7 +135,10 @@ const Calendar = () => {
           date: dateStr,
         };
         setEvents([...events, event]);
-        localStorage.setItem("sradha-events", JSON.stringify([...events, event]));
+        localStorage.setItem(
+          "sradha-events",
+          JSON.stringify([...events, event])
+        );
       } finally {
         setNewEvent({ title: "", emoji: "💕", time: "" });
         setShowEventForm(false);

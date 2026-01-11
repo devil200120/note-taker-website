@@ -18,7 +18,7 @@ const Login = ({ onLogin }) => {
     try {
       // Try API login first
       const response = await authApi.login(credentials);
-      
+
       if (response.success) {
         // Store auth token and login state
         localStorage.setItem("sradha-auth-token", response.data.token);
@@ -29,7 +29,7 @@ const Login = ({ onLogin }) => {
     } catch (apiError) {
       // Fallback to local validation if API fails
       console.log("API unavailable, using local validation");
-      
+
       if (
         credentials.username.toLowerCase() === "sradha" &&
         credentials.password === "iloveyou"
@@ -61,7 +61,11 @@ const Login = ({ onLogin }) => {
             }}
           >
             <span className="text-2xl opacity-30">
-              {["💕", "💖", "💗", "💝", "🌸", "✨", "🦋", "🐱"][Math.floor(Math.random() * 8)]}
+              {
+                ["💕", "💖", "💗", "💝", "🌸", "✨", "🦋", "🐱"][
+                  Math.floor(Math.random() * 8)
+                ]
+              }
             </span>
           </div>
         ))}
@@ -175,7 +179,9 @@ const Login = ({ onLogin }) => {
           {/* Hint Section */}
           <div className="mt-8 p-4 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl border border-rose-100">
             <p className="font-sweet text-center text-gray-500 text-sm">
-              <span className="text-rose-400">💡 Hint:</span> Your username is your first name (lowercase) and password is something special between us 💕
+              <span className="text-rose-400">💡 Hint:</span> Your username is
+              your first name (lowercase) and password is something special
+              between us 💕
             </p>
           </div>
 

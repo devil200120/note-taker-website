@@ -38,7 +38,7 @@ const Memories = () => {
 
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
-    
+
     for (const file of files) {
       try {
         // Try to upload to cloudinary
@@ -91,7 +91,10 @@ const Memories = () => {
           hearts: 0,
         };
         setMemories([newMemory, ...memories]);
-        localStorage.setItem("sradha-memories", JSON.stringify([newMemory, ...memories]));
+        localStorage.setItem(
+          "sradha-memories",
+          JSON.stringify([newMemory, ...memories])
+        );
       } finally {
         setCurrentMemory({ title: "", description: "", images: [], date: "" });
         setIsAdding(false);
@@ -117,28 +120,44 @@ const Memories = () => {
       const response = await memoriesApi.addHeart(id);
       if (response.success) {
         setMemories(
-          memories.map((m) => ((m._id === id || m.id === id) ? { ...m, hearts: m.hearts + 1 } : m))
+          memories.map((m) =>
+            m._id === id || m.id === id ? { ...m, hearts: m.hearts + 1 } : m
+          )
         );
-        if (selectedMemory && (selectedMemory._id === id || selectedMemory.id === id)) {
-          setSelectedMemory({ ...selectedMemory, hearts: selectedMemory.hearts + 1 });
+        if (
+          selectedMemory &&
+          (selectedMemory._id === id || selectedMemory.id === id)
+        ) {
+          setSelectedMemory({
+            ...selectedMemory,
+            hearts: selectedMemory.hearts + 1,
+          });
         }
       }
     } catch (error) {
       console.error("Failed to add heart:", error);
       setMemories(
-        memories.map((m) => ((m._id === id || m.id === id) ? { ...m, hearts: m.hearts + 1 } : m))
+        memories.map((m) =>
+          m._id === id || m.id === id ? { ...m, hearts: m.hearts + 1 } : m
+        )
       );
-      if (selectedMemory && (selectedMemory._id === id || selectedMemory.id === id)) {
-        setSelectedMemory({ ...selectedMemory, hearts: selectedMemory.hearts + 1 });
+      if (
+        selectedMemory &&
+        (selectedMemory._id === id || selectedMemory.id === id)
+      ) {
+        setSelectedMemory({
+          ...selectedMemory,
+          hearts: selectedMemory.hearts + 1,
+        });
       }
     }
   };
 
   // Helper to get image URL (handles both string URLs and {url} objects)
   const getImageUrl = (img) => {
-    if (typeof img === 'string') return img;
-    if (typeof img === 'object' && img.url) return img.url;
-    return '';
+    if (typeof img === "string") return img;
+    if (typeof img === "object" && img.url) return img.url;
+    return "";
   };
 
   const formatDate = (dateString) => {
@@ -283,7 +302,9 @@ const Memories = () => {
           <button
             onClick={saveMemory}
             disabled={
-              (!currentMemory.title.trim() && currentMemory.images.length === 0) || isSaving
+              (!currentMemory.title.trim() &&
+                currentMemory.images.length === 0) ||
+              isSaving
             }
             className="w-full love-button text-white font-sweet text-lg py-4 rounded-2xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -344,7 +365,9 @@ const Memories = () => {
               </span>
             </button>
             <button
-              onClick={() => deleteMemory(selectedMemory._id || selectedMemory.id)}
+              onClick={() =>
+                deleteMemory(selectedMemory._id || selectedMemory.id)
+              }
               className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-400 transition-colors"
             >
               <span>🗑️</span>
@@ -409,7 +432,8 @@ const Memories = () => {
                     {/* Content */}
                     <div className="p-4">
                       <p className="font-sweet text-rose-400 text-xs mb-1">
-                        {formatDate(memory.date) || formatDate(memory.createdAt)}
+                        {formatDate(memory.date) ||
+                          formatDate(memory.createdAt)}
                       </p>
                       <h4 className="font-sweet font-semibold text-gray-700 mb-2">
                         {memory.title || "A Beautiful Memory"}
