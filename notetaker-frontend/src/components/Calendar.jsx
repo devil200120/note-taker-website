@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from "react";
+import { eventsApi } from "../services/api";
 
 const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
-  const [events, setEvents] = useState(() => {
-    const saved = localStorage.getItem("sradha-events");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [events, setEvents] = useState([]);
   const [newEvent, setNewEvent] = useState({
     title: "",
     emoji: "💕",
     time: "",
   });
   const [showEventForm, setShowEventForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
 
   const months = [
     "January",
@@ -44,9 +44,26 @@ const Calendar = () => {
     "📝",
   ];
 
+  // Fetch events from API
   useEffect(() => {
-    localStorage.setItem("sradha-events", JSON.stringify(events));
-  }, [events]);
+    fetchEvents();
+  }, []);
+
+  const fetchEvents = async () => {
+    try {
+      setIsLoading(true);
+      const response = await eventsApi.getAll();
+      if (response.success) {
+        setEvents(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch events:", error);
+      const saved = localStorage.getItem("sradha-events");
+      if (saved) setEvents(JSON.parse(saved));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -95,24 +112,46 @@ const Calendar = () => {
     return events.filter((e) => e.date === dateStr);
   };
 
-  const addEvent = () => {
+  const addEvent = async () => {
     if (newEvent.title.trim() && selectedDate) {
+      setIsAdding(true);
       const dateStr = `${selectedDate.getFullYear()}-${String(
         selectedDate.getMonth() + 1
       ).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
-      const event = {
-        id: Date.now(),
-        ...newEvent,
-        date: dateStr,
-      };
-      setEvents([...events, event]);
-      setNewEvent({ title: "", emoji: "💕", time: "" });
-      setShowEventForm(false);
+      
+      try {
+        const response = await eventsApi.create({
+          ...newEvent,
+          date: dateStr,
+        });
+        if (response.success) {
+          setEvents([...events, response.data]);
+        }
+      } catch (error) {
+        console.error("Failed to add event:", error);
+        const event = {
+          id: Date.now(),
+          ...newEvent,
+          date: dateStr,
+        };
+        setEvents([...events, event]);
+        localStorage.setItem("sradha-events", JSON.stringify([...events, event]));
+      } finally {
+        setNewEvent({ title: "", emoji: "💕", time: "" });
+        setShowEventForm(false);
+        setIsAdding(false);
+      }
     }
   };
 
-  const deleteEvent = (id) => {
-    setEvents(events.filter((e) => e.id !== id));
+  const deleteEvent = async (id) => {
+    try {
+      await eventsApi.delete(id);
+      setEvents(events.filter((e) => e._id !== id && e.id !== id));
+    } catch (error) {
+      console.error("Failed to delete event:", error);
+      setEvents(events.filter((e) => e._id !== id && e.id !== id));
+    }
   };
 
   const selectedDateEvents = selectedDate
@@ -242,30 +281,33 @@ const Calendar = () => {
                     No events for this day 🌸
                   </p>
                 ) : (
-                  selectedDateEvents.map((event) => (
-                    <div
-                      key={event.id}
-                      className="bg-rose-50 rounded-xl p-3 flex items-center gap-3 group"
-                    >
-                      <span className="text-2xl">{event.emoji}</span>
-                      <div className="flex-1">
-                        <p className="font-sweet text-gray-700">
-                          {event.title}
-                        </p>
-                        {event.time && (
-                          <p className="font-sweet text-gray-400 text-xs">
-                            🕐 {event.time}
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => deleteEvent(event.id)}
-                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all"
+                  selectedDateEvents.map((event) => {
+                    const eventId = event._id || event.id;
+                    return (
+                      <div
+                        key={eventId}
+                        className="bg-rose-50 rounded-xl p-3 flex items-center gap-3 group"
                       >
-                        🗑️
-                      </button>
-                    </div>
-                  ))
+                        <span className="text-2xl">{event.emoji}</span>
+                        <div className="flex-1">
+                          <p className="font-sweet text-gray-700">
+                            {event.title}
+                          </p>
+                          {event.time && (
+                            <p className="font-sweet text-gray-400 text-xs">
+                              🕐 {event.time}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => deleteEvent(eventId)}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    );
+                  })
                 )}
               </div>
 
@@ -307,9 +349,10 @@ const Calendar = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={addEvent}
-                      className="flex-1 love-button text-white font-sweet py-2 rounded-xl"
+                      disabled={isAdding}
+                      className="flex-1 love-button text-white font-sweet py-2 rounded-xl disabled:opacity-50"
                     >
-                      Add ✨
+                      {isAdding ? "Adding..." : "Add ✨"}
                     </button>
                     <button
                       onClick={() => setShowEventForm(false)}
@@ -357,7 +400,7 @@ const Calendar = () => {
               .slice(0, 6)
               .map((event) => (
                 <div
-                  key={event.id}
+                  key={event._id || event.id}
                   className="bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl p-4"
                 >
                   <div className="flex items-center gap-3">

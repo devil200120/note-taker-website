@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
+import { todosApi } from "../services/api";
 
 const TodoList = () => {
-  const [todos, setTodos] = useState(() => {
-    const saved = localStorage.getItem("sradha-todos");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [todos, setTodos] = useState([]);
   const [newTodo, setNewTodo] = useState("");
   const [priority, setPriority] = useState("normal");
   const [filter, setFilter] = useState("all");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
 
   const priorities = [
     {
@@ -36,40 +36,97 @@ const TodoList = () => {
     },
   ];
 
+  // Fetch todos from API
   useEffect(() => {
-    localStorage.setItem("sradha-todos", JSON.stringify(todos));
-  }, [todos]);
+    fetchTodos();
+  }, []);
 
-  const addTodo = (e) => {
-    e.preventDefault();
-    if (newTodo.trim()) {
-      const todo = {
-        id: Date.now(),
-        text: newTodo,
-        priority: priority,
-        completed: false,
-        createdAt: new Date().toISOString(),
-      };
-      setTodos([todo, ...todos]);
-      setNewTodo("");
-      setPriority("normal");
+  const fetchTodos = async () => {
+    try {
+      setIsLoading(true);
+      const response = await todosApi.getAll();
+      if (response.success) {
+        setTodos(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch todos:", error);
+      const saved = localStorage.getItem("sradha-todos");
+      if (saved) setTodos(JSON.parse(saved));
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const toggleTodo = (id) => {
-    setTodos(
-      todos.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
-      )
-    );
+  const addTodo = async (e) => {
+    e.preventDefault();
+    if (newTodo.trim()) {
+      setIsAdding(true);
+      try {
+        const response = await todosApi.create({
+          text: newTodo,
+          priority: priority,
+        });
+        if (response.success) {
+          setTodos([response.data, ...todos]);
+        }
+      } catch (error) {
+        console.error("Failed to add todo:", error);
+        const todo = {
+          id: Date.now(),
+          text: newTodo,
+          priority: priority,
+          completed: false,
+          createdAt: new Date().toISOString(),
+        };
+        const updatedTodos = [todo, ...todos];
+        setTodos(updatedTodos);
+        localStorage.setItem("sradha-todos", JSON.stringify(updatedTodos));
+      } finally {
+        setNewTodo("");
+        setPriority("normal");
+        setIsAdding(false);
+      }
+    }
   };
 
-  const deleteTodo = (id) => {
-    setTodos(todos.filter((todo) => todo.id !== id));
+  const toggleTodo = async (id) => {
+    try {
+      const response = await todosApi.toggle(id);
+      if (response.success) {
+        setTodos(
+          todos.map((todo) =>
+            (todo._id === id || todo.id === id) ? { ...todo, completed: !todo.completed } : todo
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Failed to toggle todo:", error);
+      setTodos(
+        todos.map((todo) =>
+          (todo._id === id || todo.id === id) ? { ...todo, completed: !todo.completed } : todo
+        )
+      );
+    }
   };
 
-  const clearCompleted = () => {
-    setTodos(todos.filter((todo) => !todo.completed));
+  const deleteTodo = async (id) => {
+    try {
+      await todosApi.delete(id);
+      setTodos(todos.filter((todo) => todo._id !== id && todo.id !== id));
+    } catch (error) {
+      console.error("Failed to delete todo:", error);
+      setTodos(todos.filter((todo) => todo._id !== id && todo.id !== id));
+    }
+  };
+
+  const clearCompleted = async () => {
+    try {
+      await todosApi.clearCompleted();
+      setTodos(todos.filter((todo) => !todo.completed));
+    } catch (error) {
+      console.error("Failed to clear completed:", error);
+      setTodos(todos.filter((todo) => !todo.completed));
+    }
   };
 
   const filteredTodos = todos.filter((todo) => {
@@ -138,10 +195,10 @@ const TodoList = () => {
           />
           <button
             type="submit"
-            disabled={!newTodo.trim()}
+            disabled={!newTodo.trim() || isAdding}
             className="px-6 love-button text-white font-sweet rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Add ✨
+            {isAdding ? "..." : "Add ✨"}
           </button>
         </div>
 
@@ -189,7 +246,12 @@ const TodoList = () => {
 
       {/* Todo List */}
       <div className="space-y-3">
-        {filteredTodos.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12 glass rounded-3xl animate-fade-in">
+            <span className="text-4xl block mb-4 animate-spin">💫</span>
+            <p className="font-sweet text-gray-500">Loading your tasks...</p>
+          </div>
+        ) : filteredTodos.length === 0 ? (
           <div className="text-center py-12 glass rounded-3xl animate-fade-in">
             <span className="text-6xl block mb-4">
               {filter === "completed" ? "🎉" : "📝"}
@@ -205,9 +267,10 @@ const TodoList = () => {
         ) : (
           filteredTodos.map((todo, index) => {
             const priorityData = getPriorityData(todo.priority);
+            const todoId = todo._id || todo.id;
             return (
               <div
-                key={todo.id}
+                key={todoId}
                 className={`group p-4 rounded-2xl transition-all duration-300 animate-scale-in ${
                   todo.completed
                     ? "bg-gray-50 opacity-60"
@@ -217,7 +280,7 @@ const TodoList = () => {
               >
                 <div className="flex items-center gap-4">
                   <button
-                    onClick={() => toggleTodo(todo.id)}
+                    onClick={() => toggleTodo(todoId)}
                     className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
                       todo.completed
                         ? "bg-green-400 border-green-400 text-white"
@@ -246,7 +309,7 @@ const TodoList = () => {
                   </div>
 
                   <button
-                    onClick={() => deleteTodo(todo.id)}
+                    onClick={() => deleteTodo(todoId)}
                     className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all text-xl"
                   >
                     🗑️

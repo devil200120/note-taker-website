@@ -36,15 +36,19 @@ const NoteCard = ({
 
   const handleSaveEdit = () => {
     if (editContent.trim() || note.images?.length > 0) {
-      onEdit(note.id, { content: editContent, title: editTitle });
+      const noteId = note._id || note.id;
+      onEdit(noteId, { content: editContent, title: editTitle });
       setIsEditing(false);
     }
   };
 
   const handleDelete = () => {
-    onDelete(note.id);
+    const noteId = note._id || note.id;
+    onDelete(noteId);
     setShowDeleteConfirm(false);
   };
+
+  const getNoteId = () => note._id || note.id;
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -80,7 +84,7 @@ const NoteCard = ({
 
         {/* Love Button */}
         <button
-          onClick={() => onToggleLove(note.id)}
+          onClick={() => onToggleLove(getNoteId())}
           className="absolute top-3 left-3 text-2xl transition-transform duration-300 hover:scale-125"
         >
           {note.isLoved ? (
@@ -131,7 +135,7 @@ const NoteCard = ({
 
         {/* Images */}
         {note.images && note.images.length > 0 && !isEditing && (
-          <div className="mb-4 grid grid-cols-3 gap-2">
+          <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
             {note.images.slice(0, 3).map((img, idx) => (
               <div
                 key={idx}
@@ -165,25 +169,31 @@ const NoteCard = ({
           )}
         </div>
 
-        {/* Quick Actions (shown on hover) */}
-        {showActions && !isEditing && (
-          <div className="absolute top-1/2 right-2 transform -translate-y-1/2 flex flex-col gap-1 animate-fade-in">
+        {/* Quick Actions (shown on hover on desktop, always on mobile) */}
+        {!isEditing && (
+          <div
+            className={`absolute top-1/2 right-2 transform -translate-y-1/2 flex flex-col gap-1 ${
+              showActions
+                ? "opacity-100"
+                : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+            } transition-opacity animate-fade-in`}
+          >
             <button
-              onClick={() => onTogglePin(note.id)}
+              onClick={() => onTogglePin(getNoteId())}
               className="w-8 h-8 rounded-full bg-white/80 hover:bg-yellow-100 flex items-center justify-center text-sm transition-colors shadow"
               title={note.isPinned ? "Unpin" : "Pin"}
             >
               📌
             </button>
             <button
-              onClick={() => onDuplicate(note.id)}
+              onClick={() => onDuplicate(getNoteId())}
               className="w-8 h-8 rounded-full bg-white/80 hover:bg-blue-100 flex items-center justify-center text-sm transition-colors shadow"
               title="Duplicate"
             >
               📋
             </button>
             <button
-              onClick={() => onToggleArchive(note.id)}
+              onClick={() => onToggleArchive(getNoteId())}
               className="w-8 h-8 rounded-full bg-white/80 hover:bg-gray-100 flex items-center justify-center text-sm transition-colors shadow"
               title={note.isArchived ? "Unarchive" : "Archive"}
             >

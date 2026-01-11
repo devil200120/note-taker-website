@@ -51,7 +51,7 @@ const NotesList = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {pinnedNotes.map((note, index) => (
               <NoteCard
-                key={note.id}
+                key={note._id || note.id}
                 note={note}
                 index={index}
                 onDelete={onDelete}
@@ -71,7 +71,7 @@ const NotesList = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {regularNotes.map((note, index) => (
             <NoteCard
-              key={note.id}
+              key={note._id || note.id}
               note={note}
               index={index}
               onDelete={onDelete}

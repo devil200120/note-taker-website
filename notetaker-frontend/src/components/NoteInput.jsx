@@ -172,7 +172,7 @@ const NoteInput = ({ onAddNote, categories }) => {
 
             {/* Preview Images */}
             {images.length > 0 && (
-              <div className="grid grid-cols-4 gap-2 mt-4">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-4">
                 {images.map((img, index) => (
                   <div key={index} className="relative group">
                     <img

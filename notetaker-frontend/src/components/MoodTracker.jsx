@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { moodsApi } from "../services/api";
 
 const MoodTracker = () => {
-  const [moods, setMoods] = useState(() => {
-    const saved = localStorage.getItem("sradha-moods");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [moods, setMoods] = useState([]);
   const [selectedMood, setSelectedMood] = useState(null);
   const [note, setNote] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const moodOptions = [
     {
@@ -59,26 +59,67 @@ const MoodTracker = () => {
     },
   ];
 
+  // Fetch moods from API
   useEffect(() => {
-    localStorage.setItem("sradha-moods", JSON.stringify(moods));
-  }, [moods]);
+    fetchMoods();
+  }, []);
 
-  const saveMood = () => {
-    if (selectedMood) {
-      const newMood = {
-        id: Date.now(),
-        mood: selectedMood,
-        note: note,
-        date: new Date().toISOString(),
-      };
-      setMoods([newMood, ...moods]);
-      setSelectedMood(null);
-      setNote("");
+  const fetchMoods = async () => {
+    try {
+      setIsLoading(true);
+      const response = await moodsApi.getAll();
+      if (response.success) {
+        setMoods(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch moods:", error);
+      // Fallback to localStorage
+      const saved = localStorage.getItem("sradha-moods");
+      if (saved) setMoods(JSON.parse(saved));
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const deleteMood = (id) => {
-    setMoods(moods.filter((m) => m.id !== id));
+  const saveMood = async () => {
+    if (selectedMood) {
+      setIsSaving(true);
+      try {
+        const response = await moodsApi.create({
+          mood: selectedMood,
+          note: note,
+        });
+        if (response.success) {
+          setMoods([response.data, ...moods]);
+        }
+      } catch (error) {
+        console.error("Failed to save mood:", error);
+        // Fallback to localStorage
+        const newMood = {
+          id: Date.now(),
+          mood: selectedMood,
+          note: note,
+          date: new Date().toISOString(),
+        };
+        const updatedMoods = [newMood, ...moods];
+        setMoods(updatedMoods);
+        localStorage.setItem("sradha-moods", JSON.stringify(updatedMoods));
+      } finally {
+        setSelectedMood(null);
+        setNote("");
+        setIsSaving(false);
+      }
+    }
+  };
+
+  const deleteMood = async (id) => {
+    try {
+      await moodsApi.delete(id);
+      setMoods(moods.filter((m) => m._id !== id && m.id !== id));
+    } catch (error) {
+      console.error("Failed to delete mood:", error);
+      setMoods(moods.filter((m) => m._id !== id && m.id !== id));
+    }
   };
 
   const formatDate = (dateString) => {
@@ -119,19 +160,19 @@ const MoodTracker = () => {
         <h3 className="font-sweet text-lg text-rose-400 mb-4 text-center">
           Select your current mood:
         </h3>
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
           {moodOptions.map((mood) => (
             <button
               key={mood.name}
               onClick={() => setSelectedMood(mood)}
-              className={`p-4 rounded-2xl transition-all duration-300 flex flex-col items-center gap-2 ${
+              className={`p-3 sm:p-4 rounded-2xl transition-all duration-300 flex flex-col items-center gap-1 sm:gap-2 ${
                 selectedMood?.name === mood.name
                   ? `bg-gradient-to-br ${mood.color} scale-105 shadow-lg ring-4 ring-white`
                   : "bg-white/50 hover:bg-white/80 hover:scale-105"
               }`}
             >
-              <span className="text-4xl">{mood.emoji}</span>
-              <span className="font-sweet text-sm text-gray-600">
+              <span className="text-3xl sm:text-4xl">{mood.emoji}</span>
+              <span className="font-sweet text-xs sm:text-sm text-gray-600">
                 {mood.name}
               </span>
             </button>
@@ -158,11 +199,20 @@ const MoodTracker = () => {
         {/* Save Button */}
         <button
           onClick={saveMood}
-          disabled={!selectedMood}
+          disabled={!selectedMood || isSaving}
           className="w-full mt-4 love-button text-white font-sweet text-lg py-4 rounded-2xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <span>Save My Mood</span>
-          <span className="text-2xl">💝</span>
+          {isSaving ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span>Saving...</span>
+            </>
+          ) : (
+            <>
+              <span>Save My Mood</span>
+              <span className="text-2xl">💝</span>
+            </>
+          )}
         </button>
       </div>
 
@@ -197,7 +247,12 @@ const MoodTracker = () => {
         <h3 className="font-romantic text-2xl gradient-text text-center mb-4">
           ✨ Mood History ✨
         </h3>
-        {moods.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12 glass rounded-3xl animate-fade-in">
+            <div className="w-8 h-8 border-4 border-rose-200 border-t-rose-500 rounded-full animate-spin mx-auto mb-4" />
+            <p className="font-sweet text-gray-500">Loading your moods...</p>
+          </div>
+        ) : moods.length === 0 ? (
           <div className="text-center py-12 glass rounded-3xl animate-fade-in">
             <span className="text-6xl block mb-4">🌸</span>
             <p className="font-sweet text-gray-500">
@@ -208,7 +263,7 @@ const MoodTracker = () => {
           <div className="grid gap-4">
             {moods.map((moodEntry, index) => (
               <div
-                key={moodEntry.id}
+                key={moodEntry._id || moodEntry.id}
                 className={`p-4 rounded-2xl bg-gradient-to-r ${moodEntry.mood.color} animate-scale-in relative group`}
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
@@ -224,11 +279,11 @@ const MoodTracker = () => {
                       </p>
                     )}
                     <p className="font-sweet text-gray-500 text-xs mt-2">
-                      📅 {formatDate(moodEntry.date)}
+                      📅 {formatDate(moodEntry.date || moodEntry.createdAt)}
                     </p>
                   </div>
                   <button
-                    onClick={() => deleteMood(moodEntry.id)}
+                    onClick={() => deleteMood(moodEntry._id || moodEntry.id)}
                     className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-400"
                   >
                     🗑️

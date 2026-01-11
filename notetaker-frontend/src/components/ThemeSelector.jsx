@@ -20,14 +20,14 @@ const ThemeSelector = ({ theme, setTheme, themes }) => {
       {/* Theme Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 left-6 z-50 w-14 h-14 rounded-full bg-white/90 shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
+        className="fixed bottom-6 left-6 z-40 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/90 shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
       >
-        <span className="text-2xl">🎨</span>
+        <span className="text-xl sm:text-2xl">🎨</span>
       </button>
 
       {/* Theme Panel */}
       {isOpen && (
-        <div className="fixed bottom-24 left-6 z-50 w-64 glass rounded-3xl p-4 shadow-2xl animate-scale-in">
+        <div className="fixed bottom-20 sm:bottom-24 left-4 sm:left-6 z-40 w-56 sm:w-64 glass rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-2xl animate-scale-in">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-sweet text-rose-500 font-semibold">
               🎨 Choose Theme

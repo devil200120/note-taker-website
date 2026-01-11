@@ -337,3 +337,152 @@ body {
   font-size: 12px;
   opacity: 0.5;
 }
+
+/* PDF Viewer Styles */
+.pdf-toolbar {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.pdf-toolbar.hidden {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.pdf-page-turn {
+  animation: pageTurn 0.4s ease-out;
+}
+
+@keyframes pageTurn {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Zoom animation */
+.pdf-zoom {
+  transition: transform 0.3s ease-out;
+}
+
+/* PDF Controls Hover Effect */
+.pdf-control-btn {
+  transition: all 0.2s ease;
+}
+
+.pdf-control-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+  transform: scale(1.05);
+}
+
+.pdf-control-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* Page indicator pulse */
+.page-indicator {
+  animation: indicatorPulse 2s ease-in-out infinite;
+}
+
+@keyframes indicatorPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(244, 63, 94, 0);
+  }
+}
+
+/* Progress bar glow */
+.progress-glow {
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
+}
+
+/* Smooth scrolling for thumbnails */
+.thumbnail-scroll {
+  scroll-behavior: smooth;
+}
+
+.thumbnail-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.thumbnail-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ffb6c1, #f43f5e);
+  border-radius: 4px;
+}
+
+/* PDF Loading spinner */
+.pdf-loader {
+  border-width: 4px;
+  border-style: solid;
+  border-color: #fce7f3;
+  border-top-color: #f43f5e;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Note popup animation */
+.note-popup {
+  animation: noteSlideIn 0.3s ease-out forwards;
+}
+
+@keyframes noteSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Study section card hover */
+.study-card {
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.study-card:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 15px 30px -10px rgba(244, 63, 94, 0.3);
+}
+
+/* File upload dropzone */
+.upload-dropzone {
+  border: 2px dashed #fda4af;
+  transition: all 0.3s ease;
+}
+
+.upload-dropzone:hover {
+  border-color: #f43f5e;
+  background: rgba(253, 164, 175, 0.1);
+}
+
+.upload-dropzone.active {
+  border-color: #f43f5e;
+  background: rgba(253, 164, 175, 0.2);
+  animation: dropzonePulse 1s ease-in-out infinite;
+}
+
+@keyframes dropzonePulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.01);
+  }
+}

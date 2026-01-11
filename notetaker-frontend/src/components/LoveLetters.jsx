@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
+import { lettersApi } from "../services/api";
 
 const LoveLetters = () => {
-  const [letters, setLetters] = useState(() => {
-    const saved = localStorage.getItem("sradha-letters");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [letters, setLetters] = useState([]);
   const [isWriting, setIsWriting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [currentLetter, setCurrentLetter] = useState({
     to: "",
     subject: "",
@@ -20,41 +20,105 @@ const LoveLetters = () => {
     { emoji: "✨", name: "Special Wish", bg: "from-yellow-200 to-pink-200" },
   ];
 
+  // Fetch letters from API
   useEffect(() => {
-    localStorage.setItem("sradha-letters", JSON.stringify(letters));
-  }, [letters]);
+    fetchLetters();
+  }, []);
 
-  const saveLetter = () => {
-    if (currentLetter.content.trim()) {
-      const newLetter = {
-        id: Date.now(),
-        ...currentLetter,
-        date: new Date().toISOString(),
-        isRead: false,
-        hearts: 0,
-      };
-      setLetters([newLetter, ...letters]);
-      setCurrentLetter({ to: "", subject: "", content: "" });
-      setIsWriting(false);
+  const fetchLetters = async () => {
+    try {
+      setIsLoading(true);
+      const response = await lettersApi.getAll();
+      if (response.success) {
+        setLetters(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch letters:", error);
+      const saved = localStorage.getItem("sradha-letters");
+      if (saved) setLetters(JSON.parse(saved));
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const deleteLetter = (id) => {
-    setLetters(letters.filter((l) => l.id !== id));
-    setSelectedLetter(null);
+  const saveLetter = async () => {
+    if (currentLetter.content.trim()) {
+      setIsSaving(true);
+      try {
+        const response = await lettersApi.create(currentLetter);
+        if (response.success) {
+          setLetters([response.data, ...letters]);
+        }
+      } catch (error) {
+        console.error("Failed to save letter:", error);
+        const newLetter = {
+          id: Date.now(),
+          ...currentLetter,
+          date: new Date().toISOString(),
+          isRead: false,
+          hearts: 0,
+        };
+        const updatedLetters = [newLetter, ...letters];
+        setLetters(updatedLetters);
+        localStorage.setItem("sradha-letters", JSON.stringify(updatedLetters));
+      } finally {
+        setCurrentLetter({ to: "", subject: "", content: "" });
+        setIsWriting(false);
+        setIsSaving(false);
+      }
+    }
   };
 
-  const addHeart = (id) => {
-    setLetters(
-      letters.map((l) => (l.id === id ? { ...l, hearts: l.hearts + 1 } : l))
-    );
+  const deleteLetter = async (id) => {
+    try {
+      await lettersApi.delete(id);
+      setLetters(letters.filter((l) => l._id !== id && l.id !== id));
+      setSelectedLetter(null);
+    } catch (error) {
+      console.error("Failed to delete letter:", error);
+      setLetters(letters.filter((l) => l._id !== id && l.id !== id));
+      setSelectedLetter(null);
+    }
   };
 
-  const markAsRead = (letter) => {
-    setLetters(
-      letters.map((l) => (l.id === letter.id ? { ...l, isRead: true } : l))
-    );
-    setSelectedLetter(letter);
+  const addHeart = async (id) => {
+    try {
+      const response = await lettersApi.addHeart(id);
+      if (response.success) {
+        setLetters(
+          letters.map((l) =>
+            (l._id === id || l.id === id) ? { ...l, hearts: l.hearts + 1 } : l
+          )
+        );
+        if (selectedLetter && (selectedLetter._id === id || selectedLetter.id === id)) {
+          setSelectedLetter({ ...selectedLetter, hearts: selectedLetter.hearts + 1 });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to add heart:", error);
+      setLetters(
+        letters.map((l) =>
+          (l._id === id || l.id === id) ? { ...l, hearts: l.hearts + 1 } : l
+        )
+      );
+    }
+  };
+
+  const markAsRead = async (letter) => {
+    try {
+      if (!letter.isRead) {
+        await lettersApi.markAsRead(letter._id || letter.id);
+        setLetters(
+          letters.map((l) =>
+            (l._id === letter._id || l.id === letter.id) ? { ...l, isRead: true } : l
+          )
+        );
+      }
+      setSelectedLetter({ ...letter, isRead: true });
+    } catch (error) {
+      console.error("Failed to mark as read:", error);
+      setSelectedLetter(letter);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -170,11 +234,20 @@ With all my love..."
           {/* Save Button */}
           <button
             onClick={saveLetter}
-            disabled={!currentLetter.content.trim()}
+            disabled={!currentLetter.content.trim() || isSaving}
             className="w-full mt-6 love-button text-white font-sweet text-lg py-4 rounded-2xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span>Seal with Love</span>
-            <span className="text-2xl">💋</span>
+            {isSaving ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Sealing...</span>
+              </>
+            ) : (
+              <>
+                <span>Seal with Love</span>
+                <span className="text-2xl">💋</span>
+              </>
+            )}
           </button>
         </div>
       )}
@@ -216,7 +289,7 @@ With all my love..."
 
           <div className="flex items-center justify-between">
             <button
-              onClick={() => addHeart(selectedLetter.id)}
+              onClick={() => addHeart(selectedLetter._id || selectedLetter.id)}
               className="flex items-center gap-2 px-4 py-2 rounded-full bg-rose-50 hover:bg-rose-100 transition-colors"
             >
               <span className="animate-heart-beat">💕</span>
@@ -225,7 +298,7 @@ With all my love..."
               </span>
             </button>
             <button
-              onClick={() => deleteLetter(selectedLetter.id)}
+              onClick={() => deleteLetter(selectedLetter._id || selectedLetter.id)}
               className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-400 transition-colors"
             >
               <span>🗑️</span>
@@ -238,7 +311,12 @@ With all my love..."
       {/* Letters List */}
       {!isWriting && !selectedLetter && (
         <div className="space-y-4">
-          {letters.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-16 glass rounded-3xl animate-fade-in">
+              <div className="w-8 h-8 border-4 border-rose-200 border-t-rose-500 rounded-full animate-spin mx-auto mb-4" />
+              <p className="font-sweet text-gray-500">Loading your letters...</p>
+            </div>
+          ) : letters.length === 0 ? (
             <div className="text-center py-16 glass rounded-3xl animate-fade-in">
               <span className="text-6xl block mb-4 animate-float">💌</span>
               <h3 className="font-romantic text-2xl text-rose-400 mb-3">
@@ -252,7 +330,7 @@ With all my love..."
             <div className="grid gap-4">
               {letters.map((letter, index) => (
                 <div
-                  key={letter.id}
+                  key={letter._id || letter.id}
                   onClick={() => markAsRead(letter)}
                   className={`p-5 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-lg animate-scale-in ${
                     letter.isRead
@@ -273,7 +351,7 @@ With all my love..."
                         To: {letter.to || "My Beautiful Self"}
                       </p>
                       <p className="font-sweet text-gray-400 text-xs mt-1">
-                        {formatDate(letter.date)}
+                        {formatDate(letter.date || letter.createdAt)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

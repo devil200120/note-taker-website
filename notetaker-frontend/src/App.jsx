@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { notesApi, authApi } from "./services/api";
+import Login from "./components/Login";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import NoteInput from "./components/NoteInput";
@@ -18,12 +20,11 @@ import Calendar from "./components/Calendar";
 import ThemeSelector from "./components/ThemeSelector";
 import WelcomeScreen from "./components/WelcomeScreen";
 import StatsCard from "./components/StatsCard";
+import StudyNotes from "./components/StudyNotes";
 
 function App() {
-  const [notes, setNotes] = useState(() => {
-    const savedNotes = localStorage.getItem("sradha-notes");
-    return savedNotes ? JSON.parse(savedNotes) : [];
-  });
+  const [notes, setNotes] = useState([]);
+  const [isLoadingNotes, setIsLoadingNotes] = useState(true);
   const [showLoveMessage, setShowLoveMessage] = useState(true);
   const [currentSection, setCurrentSection] = useState("notes");
   const [searchQuery, setSearchQuery] = useState("");
@@ -32,9 +33,53 @@ function App() {
     return localStorage.getItem("sradha-theme") || "rose";
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem("sradha-sidebar-collapsed") === "true";
+  });
   const [showWelcome, setShowWelcome] = useState(() => {
     return !localStorage.getItem("sradha-welcomed");
   });
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem("sradha-logged-in") === "true";
+  });
+  const [isViewingPdf, setIsViewingPdf] = useState(false);
+
+  // Fetch notes from API when logged in
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchNotes();
+    }
+  }, [isLoggedIn]);
+
+  const fetchNotes = async () => {
+    try {
+      setIsLoadingNotes(true);
+      const response = await notesApi.getAll();
+      if (response.success) {
+        setNotes(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch notes:", error);
+      const savedNotes = localStorage.getItem("sradha-notes");
+      if (savedNotes) setNotes(JSON.parse(savedNotes));
+    } finally {
+      setIsLoadingNotes(false);
+    }
+  };
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+    localStorage.removeItem("sradha-logged-in");
+    localStorage.removeItem("sradha-login-time");
+    localStorage.removeItem("sradha-auth-token");
+    setIsLoggedIn(false);
+    setNotes([]);
+  };
 
   const categories = [
     { id: "all", name: "All Notes", emoji: "📚", color: "rose" },
@@ -69,14 +114,24 @@ function App() {
   };
 
   useEffect(() => {
-    localStorage.setItem("sradha-notes", JSON.stringify(notes));
-  }, [notes]);
-
-  useEffect(() => {
     localStorage.setItem("sradha-theme", theme);
   }, [theme]);
 
-  const addNote = (noteData) => {
+  useEffect(() => {
+    localStorage.setItem("sradha-sidebar-collapsed", sidebarCollapsed);
+  }, [sidebarCollapsed]);
+
+  const addNote = async (noteData) => {
+    try {
+      const response = await notesApi.create(noteData);
+      if (response.success) {
+        setNotes([response.data, ...notes]);
+        return;
+      }
+    } catch (error) {
+      console.error("Failed to add note:", error);
+    }
+    // Fallback to local
     const newNote = {
       id: Date.now(),
       ...noteData,
@@ -86,49 +141,99 @@ function App() {
       isArchived: false,
     };
     setNotes([newNote, ...notes]);
+    localStorage.setItem("sradha-notes", JSON.stringify([newNote, ...notes]));
   };
 
-  const deleteNote = (id) => {
-    setNotes(notes.filter((note) => note.id !== id));
+  const deleteNote = async (id) => {
+    try {
+      await notesApi.delete(id);
+    } catch (error) {
+      console.error("Failed to delete note:", error);
+    }
+    setNotes(notes.filter((note) => note._id !== id && note.id !== id));
   };
 
-  const toggleLove = (id) => {
+  const toggleLove = async (id) => {
+    const note = notes.find((n) => n._id === id || n.id === id);
+    if (!note) return;
+    
+    try {
+      await notesApi.update(id, { isLoved: !note.isLoved });
+    } catch (error) {
+      console.error("Failed to toggle love:", error);
+    }
     setNotes(
       notes.map((note) =>
-        note.id === id ? { ...note, isLoved: !note.isLoved } : note
+        (note._id === id || note.id === id) ? { ...note, isLoved: !note.isLoved } : note
       )
     );
   };
 
-  const togglePin = (id) => {
+  const togglePin = async (id) => {
+    const note = notes.find((n) => n._id === id || n.id === id);
+    if (!note) return;
+
+    try {
+      await notesApi.update(id, { isPinned: !note.isPinned });
+    } catch (error) {
+      console.error("Failed to toggle pin:", error);
+    }
     setNotes(
       notes.map((note) =>
-        note.id === id ? { ...note, isPinned: !note.isPinned } : note
+        (note._id === id || note.id === id) ? { ...note, isPinned: !note.isPinned } : note
       )
     );
   };
 
-  const toggleArchive = (id) => {
+  const toggleArchive = async (id) => {
+    const note = notes.find((n) => n._id === id || n.id === id);
+    if (!note) return;
+
+    try {
+      await notesApi.update(id, { isArchived: !note.isArchived });
+    } catch (error) {
+      console.error("Failed to toggle archive:", error);
+    }
     setNotes(
       notes.map((note) =>
-        note.id === id ? { ...note, isArchived: !note.isArchived } : note
+        (note._id === id || note.id === id) ? { ...note, isArchived: !note.isArchived } : note
       )
     );
   };
 
-  const editNote = (id, updatedData) => {
+  const editNote = async (id, updatedData) => {
+    try {
+      await notesApi.update(id, updatedData);
+    } catch (error) {
+      console.error("Failed to edit note:", error);
+    }
     setNotes(
       notes.map((note) =>
-        note.id === id
+        (note._id === id || note.id === id)
           ? { ...note, ...updatedData, updatedAt: new Date().toISOString() }
           : note
       )
     );
   };
 
-  const duplicateNote = (id) => {
-    const noteToDuplicate = notes.find((note) => note.id === id);
+  const duplicateNote = async (id) => {
+    const noteToDuplicate = notes.find((note) => note._id === id || note.id === id);
     if (noteToDuplicate) {
+      const duplicateData = {
+        content: noteToDuplicate.content + " (Copy)",
+        title: noteToDuplicate.title,
+        category: noteToDuplicate.category,
+      };
+      try {
+        const response = await notesApi.create(duplicateData);
+        if (response.success) {
+          setNotes([response.data, ...notes]);
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to duplicate note:", error);
+      }
+      // Fallback
       const newNote = {
         ...noteToDuplicate,
         id: Date.now(),
@@ -197,6 +302,8 @@ function App() {
         );
       case "cats":
         return <CatGallery />;
+      case "study":
+        return <StudyNotes onPdfViewChange={setIsViewingPdf} />;
       case "mood":
         return <MoodTracker />;
       case "letters":
@@ -242,69 +349,87 @@ function App() {
     <div
       className={`min-h-screen relative overflow-hidden ${themes[theme].bg}`}
     >
-      {/* Floating Hearts Background */}
-      <FloatingHearts theme={theme} />
+      {/* Login Screen */}
+      {!isLoggedIn && <Login onLogin={setIsLoggedIn} />}
 
-      {/* Love Message Modal */}
-      {showLoveMessage && (
-        <LoveMessage onClose={() => setShowLoveMessage(false)} />
-      )}
+      {/* Main App - Only show when logged in */}
+      {isLoggedIn && (
+        <>
+          {/* Floating Hearts Background */}
+          {!isViewingPdf && <FloatingHearts theme={theme} />}
 
-      {/* Music Player - Fixed Position */}
-      <MusicPlayer />
+          {/* Love Message Modal */}
+          {showLoveMessage && (
+            <LoveMessage onClose={() => setShowLoveMessage(false)} />
+          )}
 
-      {/* Theme Selector - Fixed Position */}
-      <ThemeSelector theme={theme} setTheme={setTheme} themes={themes} />
+          {/* Music Player - Fixed Position */}
+          {!isViewingPdf && <MusicPlayer />}
 
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed top-4 left-4 z-50 lg:hidden bg-white/80 backdrop-blur-sm p-3 rounded-full shadow-lg hover:scale-110 transition-transform"
-      >
-        <span className="text-2xl">{sidebarOpen ? "✕" : "☰"}</span>
-      </button>
+          {/* Theme Selector - Fixed Position */}
+          {!isViewingPdf && <ThemeSelector theme={theme} setTheme={setTheme} themes={themes} />}
 
-      {/* Sidebar */}
-      <Sidebar
-        currentSection={currentSection}
-        setCurrentSection={setCurrentSection}
-        isOpen={sidebarOpen}
-        setIsOpen={setSidebarOpen}
-        notesCount={notes.filter((n) => !n.isArchived).length}
-        archivedCount={archivedNotes.length}
-      />
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="fixed top-4 left-4 z-50 lg:hidden bg-white/80 backdrop-blur-sm p-3 rounded-full shadow-lg hover:scale-110 transition-transform"
+          >
+            <span className="text-2xl">{sidebarOpen ? "✕" : "☰"}</span>
+          </button>
 
-      {/* Main Content */}
-      <div className="lg:ml-72 relative z-10 min-h-screen">
-        {/* Header */}
-        <Header theme={theme} />
+          {/* Sidebar */}
+          <Sidebar
+            currentSection={currentSection}
+            setCurrentSection={setCurrentSection}
+            isOpen={sidebarOpen}
+            setIsOpen={setSidebarOpen}
+            isCollapsed={sidebarCollapsed}
+            setIsCollapsed={setSidebarCollapsed}
+            notesCount={notes.filter((n) => !n.isArchived).length}
+            archivedCount={archivedNotes.length}
+          />
 
-        {/* Quote of the Day */}
-        <QuoteOfDay />
+          {/* Main Content */}
+          <div className={`relative z-10 min-h-screen transition-all duration-300 ${sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"}`}>
+            {/* Header */}
+            <Header theme={theme} />
 
-        {/* Stats Cards */}
-        <StatsCard notes={notes} />
+            {/* Quote of the Day */}
+            <QuoteOfDay />
 
-        {/* Dynamic Section Content */}
-        {renderSection()}
+            {/* Stats Cards */}
+            <StatsCard notes={notes} />
 
-        {/* Footer */}
-        <footer className="text-center py-8 text-rose-400 font-sweet border-t border-rose-100 mt-12 bg-white/30 backdrop-blur-sm">
-          <p className="flex items-center justify-center gap-2">
-            Made with <span className="text-2xl animate-heart-beat">💖</span>{" "}
-            for Sradha Priyadarshini
-          </p>
-          <p className="text-sm mt-2 opacity-70">
-            You are the most beautiful thing that ever happened to me ✨
-          </p>
-          <div className="flex justify-center gap-4 mt-4">
-            <span className="text-2xl animate-bounce-slow">🐱</span>
-            <span className="text-2xl animate-float">💕</span>
-            <span className="text-2xl animate-wiggle">🌸</span>
-            <span className="text-2xl animate-float-delayed">✨</span>
+            {/* Dynamic Section Content */}
+            {renderSection()}
+
+            {/* Footer */}
+            <footer className="text-center py-8 text-rose-400 font-sweet border-t border-rose-100 mt-12 bg-white/30 backdrop-blur-sm">
+              <p className="flex items-center justify-center gap-2">
+                Made with <span className="text-2xl animate-heart-beat">💖</span>{" "}
+                for Sradha Priyadarshini
+              </p>
+              <p className="text-sm mt-2 opacity-70">
+                You are the most beautiful thing that ever happened to me ✨
+              </p>
+              <div className="flex justify-center gap-4 mt-4">
+                <span className="text-2xl animate-bounce-slow">🐱</span>
+                <span className="text-2xl animate-float">💕</span>
+                <span className="text-2xl animate-wiggle">🌸</span>
+                <span className="text-2xl animate-float-delayed">✨</span>
+              </div>
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                className="mt-6 px-6 py-2 bg-rose-100 hover:bg-rose-200 text-rose-500 font-sweet text-sm rounded-full transition-all duration-300 flex items-center gap-2 mx-auto"
+              >
+                <span>🚪</span>
+                <span>Logout</span>
+              </button>
+            </footer>
           </div>
-        </footer>
-      </div>
+        </>
+      )}
     </div>
   );
 }
