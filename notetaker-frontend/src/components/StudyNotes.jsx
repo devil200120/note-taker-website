@@ -125,6 +125,8 @@ const StudyNotes = ({ onPdfViewChange }) => {
   const [openingPdfName, setOpeningPdfName] = useState(""); // Name of PDF being opened
   const [isDownloading, setIsDownloading] = useState(false); // Loading state for downloading PDF
   const [downloadingPdfName, setDownloadingPdfName] = useState(""); // Name of PDF being downloaded
+  const [editingSection, setEditingSection] = useState(null); // Section being edited
+  const [editSectionData, setEditSectionData] = useState({ name: "", emoji: "📚", color: "rose" });
   const fileInputRef = useRef(null);
 
   // Confirmation dialog states
@@ -367,6 +369,60 @@ const StudyNotes = ({ onPdfViewChange }) => {
       setNewSection({ name: "", emoji: "📚", color: "rose" });
       setIsAddingSection(false);
     }
+  };
+
+  // Open edit section dialog
+  const openEditSection = (section, e) => {
+    e.stopPropagation();
+    setEditingSection(section);
+    setEditSectionData({
+      name: section.name,
+      emoji: section.emoji,
+      color: section.color,
+    });
+  };
+
+  // Save edited section
+  const saveEditedSection = async () => {
+    if (!editSectionData.name.trim() || !editingSection) return;
+
+    const sectionId = editingSection._id || editingSection.id;
+    const updatedData = {
+      name: editSectionData.name.trim(),
+      emoji: editSectionData.emoji,
+      color: editSectionData.color,
+    };
+
+    try {
+      const response = await studyApi.updateSection(sectionId, updatedData);
+      if (response.success) {
+        setSections(sections.map((s) => 
+          (s._id || s.id) === sectionId ? { ...s, ...response.data } : s
+        ));
+        // Update selected section if it's the one being edited
+        if (selectedSection && (selectedSection._id || selectedSection.id) === sectionId) {
+          setSelectedSection({ ...selectedSection, ...response.data });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update section:", error);
+      // Fallback to local update
+      setSections(sections.map((s) => 
+        (s._id || s.id) === sectionId ? { ...s, ...updatedData } : s
+      ));
+      if (selectedSection && (selectedSection._id || selectedSection.id) === sectionId) {
+        setSelectedSection({ ...selectedSection, ...updatedData });
+      }
+    }
+
+    setEditingSection(null);
+    setEditSectionData({ name: "", emoji: "📚", color: "rose" });
+  };
+
+  // Cancel editing
+  const cancelEditSection = () => {
+    setEditingSection(null);
+    setEditSectionData({ name: "", emoji: "📚", color: "rose" });
   };
 
   // Open delete confirmation dialog for section
@@ -820,6 +876,13 @@ const StudyNotes = ({ onPdfViewChange }) => {
                   className="hidden"
                 />
                 <button
+                  onClick={(e) => openEditSection(selectedSection, e)}
+                  className="bg-blue-100 hover:bg-blue-200 text-blue-600 font-sweet px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl flex items-center gap-2 text-sm sm:text-base transition-all"
+                  title="Edit Section"
+                >
+                  <span>✏️</span> <span className="hidden sm:inline">Edit</span>
+                </button>
+                <button
                   onClick={() => fileInputRef.current?.click()}
                   className="love-button text-white font-sweet px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl flex items-center gap-2 text-sm sm:text-base w-full sm:w-auto justify-center"
                 >
@@ -1069,15 +1132,25 @@ const StudyNotes = ({ onPdfViewChange }) => {
                     >
                       {section.emoji}
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        confirmDeleteSection(section);
-                      }}
-                      className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all p-1"
-                    >
-                      🗑️
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => openEditSection(section, e)}
+                        className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-all p-1"
+                        title="Edit Section"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          confirmDeleteSection(section);
+                        }}
+                        className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all p-1"
+                        title="Delete Section"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                   <h3
                     className={`font-sweet font-semibold ${colorClasses.text} text-base sm:text-lg truncate`}
@@ -1288,6 +1361,107 @@ const StudyNotes = ({ onPdfViewChange }) => {
             </div>
           )}
         </>
+      )}
+
+      {/* Edit Section Modal */}
+      {editingSection && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+            onClick={cancelEditSection}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full animate-scale-in overflow-hidden">
+            {/* Header gradient */}
+            <div className="h-2 bg-gradient-to-r from-blue-400 to-cyan-500" />
+
+            {/* Content */}
+            <div className="p-6">
+              {/* Icon */}
+              <div className="flex justify-center mb-4">
+                <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center animate-bounce-slow">
+                  <span className="text-5xl">✏️</span>
+                </div>
+              </div>
+
+              {/* Title */}
+              <h3 className="font-romantic text-2xl text-center gradient-text mb-4">
+                Edit Section
+              </h3>
+
+              {/* Section Name Input */}
+              <input
+                type="text"
+                value={editSectionData.name}
+                onChange={(e) => setEditSectionData({ ...editSectionData, name: e.target.value })}
+                placeholder="Section name..."
+                className="w-full p-3 rounded-xl border-2 border-blue-100 font-sweet text-gray-700 bg-white focus:border-blue-400 focus:outline-none mb-4"
+                autoFocus
+              />
+
+              {/* Emoji Selection */}
+              <div className="mb-4">
+                <p className="font-sweet text-xs text-gray-500 mb-2">Pick an emoji:</p>
+                <div className="flex flex-wrap gap-1">
+                  {emojiOptions.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => setEditSectionData({ ...editSectionData, emoji })}
+                      className={`text-lg sm:text-xl p-1 rounded-lg transition-all ${
+                        editSectionData.emoji === emoji
+                          ? "bg-blue-200 scale-110"
+                          : "hover:bg-blue-50"
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Color Selection */}
+              <div className="mb-6">
+                <p className="font-sweet text-xs text-gray-500 mb-2">Pick a color:</p>
+                <div className="flex flex-wrap gap-2">
+                  {colorOptions.map((color) => (
+                    <button
+                      key={color.name}
+                      onClick={() => setEditSectionData({ ...editSectionData, color: color.name })}
+                      className={`w-8 h-8 rounded-full ${color.bg} ${color.border} border-2 transition-all ${
+                        editSectionData.color === color.name
+                          ? "ring-2 ring-blue-400 scale-110"
+                          : ""
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={cancelEditSection}
+                  className="flex-1 px-6 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 font-sweet text-gray-700 transition-all duration-300 hover:scale-105"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveEditedSection}
+                  disabled={!editSectionData.name.trim()}
+                  className="flex-1 px-6 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed font-sweet text-white transition-all duration-300 hover:scale-105 shadow-lg"
+                >
+                  Save Changes ✨
+                </button>
+              </div>
+            </div>
+
+            {/* Decorative elements */}
+            <div className="absolute top-4 right-4 text-2xl opacity-20 animate-wiggle">✨</div>
+            <div className="absolute bottom-4 left-4 text-2xl opacity-20 animate-float">📝</div>
+          </div>
+        </div>
       )}
 
       {/* Beautiful Delete Confirmation Dialog */}
