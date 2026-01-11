@@ -126,7 +126,11 @@ const StudyNotes = ({ onPdfViewChange }) => {
   const [isDownloading, setIsDownloading] = useState(false); // Loading state for downloading PDF
   const [downloadingPdfName, setDownloadingPdfName] = useState(""); // Name of PDF being downloaded
   const [editingSection, setEditingSection] = useState(null); // Section being edited
-  const [editSectionData, setEditSectionData] = useState({ name: "", emoji: "📚", color: "rose" });
+  const [editSectionData, setEditSectionData] = useState({
+    name: "",
+    emoji: "📚",
+    color: "rose",
+  });
   const fileInputRef = useRef(null);
 
   // Confirmation dialog states
@@ -396,21 +400,31 @@ const StudyNotes = ({ onPdfViewChange }) => {
     try {
       const response = await studyApi.updateSection(sectionId, updatedData);
       if (response.success) {
-        setSections(sections.map((s) => 
-          (s._id || s.id) === sectionId ? { ...s, ...response.data } : s
-        ));
+        setSections(
+          sections.map((s) =>
+            (s._id || s.id) === sectionId ? { ...s, ...response.data } : s
+          )
+        );
         // Update selected section if it's the one being edited
-        if (selectedSection && (selectedSection._id || selectedSection.id) === sectionId) {
+        if (
+          selectedSection &&
+          (selectedSection._id || selectedSection.id) === sectionId
+        ) {
           setSelectedSection({ ...selectedSection, ...response.data });
         }
       }
     } catch (error) {
       console.error("Failed to update section:", error);
       // Fallback to local update
-      setSections(sections.map((s) => 
-        (s._id || s.id) === sectionId ? { ...s, ...updatedData } : s
-      ));
-      if (selectedSection && (selectedSection._id || selectedSection.id) === sectionId) {
+      setSections(
+        sections.map((s) =>
+          (s._id || s.id) === sectionId ? { ...s, ...updatedData } : s
+        )
+      );
+      if (
+        selectedSection &&
+        (selectedSection._id || selectedSection.id) === sectionId
+      ) {
         setSelectedSection({ ...selectedSection, ...updatedData });
       }
     }
@@ -1395,7 +1409,12 @@ const StudyNotes = ({ onPdfViewChange }) => {
               <input
                 type="text"
                 value={editSectionData.name}
-                onChange={(e) => setEditSectionData({ ...editSectionData, name: e.target.value })}
+                onChange={(e) =>
+                  setEditSectionData({
+                    ...editSectionData,
+                    name: e.target.value,
+                  })
+                }
                 placeholder="Section name..."
                 className="w-full p-3 rounded-xl border-2 border-blue-100 font-sweet text-gray-700 bg-white focus:border-blue-400 focus:outline-none mb-4"
                 autoFocus
@@ -1403,12 +1422,16 @@ const StudyNotes = ({ onPdfViewChange }) => {
 
               {/* Emoji Selection */}
               <div className="mb-4">
-                <p className="font-sweet text-xs text-gray-500 mb-2">Pick an emoji:</p>
+                <p className="font-sweet text-xs text-gray-500 mb-2">
+                  Pick an emoji:
+                </p>
                 <div className="flex flex-wrap gap-1">
                   {emojiOptions.map((emoji) => (
                     <button
                       key={emoji}
-                      onClick={() => setEditSectionData({ ...editSectionData, emoji })}
+                      onClick={() =>
+                        setEditSectionData({ ...editSectionData, emoji })
+                      }
                       className={`text-lg sm:text-xl p-1 rounded-lg transition-all ${
                         editSectionData.emoji === emoji
                           ? "bg-blue-200 scale-110"
@@ -1423,13 +1446,22 @@ const StudyNotes = ({ onPdfViewChange }) => {
 
               {/* Color Selection */}
               <div className="mb-6">
-                <p className="font-sweet text-xs text-gray-500 mb-2">Pick a color:</p>
+                <p className="font-sweet text-xs text-gray-500 mb-2">
+                  Pick a color:
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {colorOptions.map((color) => (
                     <button
                       key={color.name}
-                      onClick={() => setEditSectionData({ ...editSectionData, color: color.name })}
-                      className={`w-8 h-8 rounded-full ${color.bg} ${color.border} border-2 transition-all ${
+                      onClick={() =>
+                        setEditSectionData({
+                          ...editSectionData,
+                          color: color.name,
+                        })
+                      }
+                      className={`w-8 h-8 rounded-full ${color.bg} ${
+                        color.border
+                      } border-2 transition-all ${
                         editSectionData.color === color.name
                           ? "ring-2 ring-blue-400 scale-110"
                           : ""
@@ -1458,8 +1490,12 @@ const StudyNotes = ({ onPdfViewChange }) => {
             </div>
 
             {/* Decorative elements */}
-            <div className="absolute top-4 right-4 text-2xl opacity-20 animate-wiggle">✨</div>
-            <div className="absolute bottom-4 left-4 text-2xl opacity-20 animate-float">📝</div>
+            <div className="absolute top-4 right-4 text-2xl opacity-20 animate-wiggle">
+              ✨
+            </div>
+            <div className="absolute bottom-4 left-4 text-2xl opacity-20 animate-float">
+              📝
+            </div>
           </div>
         </div>
       )}
