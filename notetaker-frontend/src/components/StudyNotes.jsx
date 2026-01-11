@@ -123,6 +123,8 @@ const StudyNotes = ({ onPdfViewChange }) => {
   const [viewMode, setViewMode] = useState("grid"); // grid or list
   const [isOpeningPdf, setIsOpeningPdf] = useState(false); // Loading state for opening PDF
   const [openingPdfName, setOpeningPdfName] = useState(""); // Name of PDF being opened
+  const [isDownloading, setIsDownloading] = useState(false); // Loading state for downloading PDF
+  const [downloadingPdfName, setDownloadingPdfName] = useState(""); // Name of PDF being downloaded
   const fileInputRef = useRef(null);
 
   // Confirmation dialog states
@@ -534,6 +536,53 @@ const StudyNotes = ({ onPdfViewChange }) => {
     });
   };
 
+  // Download PDF function
+  const downloadPdf = async (pdf, e) => {
+    e.stopPropagation(); // Prevent opening the PDF
+
+    const pdfId = pdf._id || pdf.id;
+    let fileData = pdf.fileData;
+
+    // Show loading state
+    setIsDownloading(true);
+    setDownloadingPdfName(pdf.name);
+
+    // If fileData is not available, fetch it first
+    if (!fileData) {
+      try {
+        const response = await studyApi.getPdf(pdfId);
+        if (response.success && response.data.fileData) {
+          fileData = response.data.fileData;
+        } else {
+          alert("Could not download the PDF. Please try again!");
+          setIsDownloading(false);
+          setDownloadingPdfName("");
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to fetch PDF for download:", error);
+        alert("Could not download the PDF. Please try again!");
+        setIsDownloading(false);
+        setDownloadingPdfName("");
+        return;
+      }
+    }
+
+    // Create download link
+    const link = document.createElement("a");
+    link.href = fileData;
+    link.download = pdf.fileName || `${pdf.name}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Hide loading state after a short delay
+    setTimeout(() => {
+      setIsDownloading(false);
+      setDownloadingPdfName("");
+    }, 500);
+  };
+
   // If viewing a PDF
   if (selectedPdf) {
     return (
@@ -575,7 +624,7 @@ const StudyNotes = ({ onPdfViewChange }) => {
               <span className="text-6xl animate-bounce block">📖</span>
               <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-16 h-2 bg-rose-200 rounded-full animate-pulse"></div>
             </div>
-            
+
             {/* Loading text */}
             <h3 className="font-romantic text-2xl gradient-text mb-2">
               Opening PDF
@@ -583,15 +632,46 @@ const StudyNotes = ({ onPdfViewChange }) => {
             <p className="font-sweet text-gray-500 mb-4 truncate px-4">
               {openingPdfName}
             </p>
-            
+
             {/* Loading bar */}
             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
               <div className="h-full bg-gradient-to-r from-rose-400 via-pink-400 to-rose-400 rounded-full animate-loading-bar"></div>
             </div>
-            
+
             {/* Cute message */}
             <p className="font-sweet text-sm text-rose-400 mt-4 animate-pulse">
               Preparing your study material... 💕
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Overlay when downloading PDF */}
+      {isDownloading && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl p-8 shadow-2xl max-w-sm w-full mx-4 animate-scale-in text-center">
+            {/* Animated download icon */}
+            <div className="relative w-24 h-24 mx-auto mb-6">
+              <span className="text-6xl animate-bounce block">⬇️</span>
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-16 h-2 bg-blue-200 rounded-full animate-pulse"></div>
+            </div>
+
+            {/* Loading text */}
+            <h3 className="font-romantic text-2xl gradient-text mb-2">
+              Downloading PDF
+            </h3>
+            <p className="font-sweet text-gray-500 mb-4 truncate px-4">
+              {downloadingPdfName}
+            </p>
+
+            {/* Loading bar */}
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 rounded-full animate-loading-bar"></div>
+            </div>
+
+            {/* Cute message */}
+            <p className="font-sweet text-sm text-blue-400 mt-4 animate-pulse">
+              Preparing your download... 📥
             </p>
           </div>
         </div>
@@ -861,15 +941,25 @@ const StudyNotes = ({ onPdfViewChange }) => {
                             ? `Last read: ${formatDate(pdf.lastReadAt)}`
                             : "Not read yet"}
                         </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            confirmDeletePdf(pdf);
-                          }}
-                          className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all p-1"
-                        >
-                          🗑️
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={(e) => downloadPdf(pdf, e)}
+                            className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-all p-1"
+                            title="Download PDF"
+                          >
+                            ⬇️
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              confirmDeletePdf(pdf);
+                            }}
+                            className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all p-1"
+                            title="Delete PDF"
+                          >
+                            🗑️
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -916,11 +1006,19 @@ const StudyNotes = ({ onPdfViewChange }) => {
                           {pdf.isFavorite ? "⭐" : "☆"}
                         </button>
                         <button
+                          onClick={(e) => downloadPdf(pdf, e)}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-all"
+                          title="Download PDF"
+                        >
+                          ⬇️
+                        </button>
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             confirmDeletePdf(pdf);
                           }}
                           className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all"
+                          title="Delete PDF"
                         >
                           🗑️
                         </button>

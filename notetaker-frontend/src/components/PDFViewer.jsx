@@ -14,15 +14,12 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [pageWidth, setPageWidth] = useState(null);
   const [loadError, setLoadError] = useState(null);
-  const [isScrolling, setIsScrolling] = useState(false);
+  const [pagesLoaded, setPagesLoaded] = useState({});
 
   const containerRef = useRef(null);
-  const pageContainerRef = useRef(null);
-  const scrollTimeoutRef = useRef(null);
-  const lastScrollY = useRef(0);
-  const touchStartY = useRef(0);
-  const touchEndY = useRef(0);
-  const wheelAccumulator = useRef(0);
+  const scrollContainerRef = useRef(null);
+  const pageRefs = useRef({});
+  const isScrollingRef = useRef(false);
 
   const zoomLevels = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
 
@@ -31,194 +28,61 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      if (pageContainerRef.current) {
-        const containerWidth = pageContainerRef.current.clientWidth;
-        // On mobile, use full width with minimal padding
-        setPageWidth(mobile ? containerWidth : containerWidth - 32);
+      if (scrollContainerRef.current) {
+        const containerWidth = scrollContainerRef.current.clientWidth;
+        // On mobile, use full width; on desktop, add some margin
+        setPageWidth(mobile ? containerWidth : containerWidth - 64);
       }
     };
-    
-    // Initial calculation after a small delay to ensure container is rendered
+
     setTimeout(handleResize, 100);
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Handle scroll to change pages
+  // Track which page is currently visible based on scroll position
   useEffect(() => {
-    const container = pageContainerRef.current;
-    if (!container) return;
+    const container = scrollContainerRef.current;
+    if (!container || totalPages <= 1) return;
 
     const handleScroll = () => {
-      const scrollTop = container.scrollTop;
-      const scrollHeight = container.scrollHeight;
-      const clientHeight = container.clientHeight;
-      
-      // Determine scroll direction
-      const scrollingDown = scrollTop > lastScrollY.current;
-      lastScrollY.current = scrollTop;
+      if (isScrollingRef.current) return;
 
-      // Clear existing timeout
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
+      const containerRect = container.getBoundingClientRect();
+      const containerCenter = containerRect.top + containerRect.height / 2;
 
-      // Check if we've scrolled to the bottom (go to next page)
-      if (scrollingDown && scrollTop + clientHeight >= scrollHeight - 50) {
-        if (currentPage < totalPages && !isScrolling) {
-          setIsScrolling(true);
-          scrollTimeoutRef.current = setTimeout(() => {
-            setCurrentPage(prev => Math.min(prev + 1, totalPages));
-            container.scrollTop = 0;
-            setIsScrolling(false);
-          }, 150);
-        }
-      }
-      
-      // Check if we've scrolled to the top (go to previous page)
-      if (!scrollingDown && scrollTop <= 10) {
-        if (currentPage > 1 && !isScrolling) {
-          setIsScrolling(true);
-          scrollTimeoutRef.current = setTimeout(() => {
-            setCurrentPage(prev => Math.max(prev - 1, 1));
-            // Scroll to bottom of previous page
-            setTimeout(() => {
-              container.scrollTop = container.scrollHeight;
-            }, 100);
-            setIsScrolling(false);
-          }, 150);
-        }
-      }
-    };
+      let closestPage = 1;
+      let closestDistance = Infinity;
 
-    // Handle wheel event for page navigation when content doesn't scroll
-    const handleWheel = (e) => {
-      const scrollTop = container.scrollTop;
-      const scrollHeight = container.scrollHeight;
-      const clientHeight = container.clientHeight;
-      const canScroll = scrollHeight > clientHeight + 10;
+      // Find which page is most visible (closest to center of viewport)
+      for (let i = 1; i <= totalPages; i++) {
+        const pageEl = pageRefs.current[i];
+        if (pageEl) {
+          const pageRect = pageEl.getBoundingClientRect();
+          const pageCenter = pageRect.top + pageRect.height / 2;
+          const distance = Math.abs(containerCenter - pageCenter);
 
-      // If content can scroll normally, let it scroll
-      if (canScroll) {
-        const atBottom = scrollTop + clientHeight >= scrollHeight - 10;
-        const atTop = scrollTop <= 10;
-        
-        // Only handle page change at boundaries
-        if (e.deltaY > 0 && atBottom && currentPage < totalPages && !isScrolling) {
-          e.preventDefault();
-          setIsScrolling(true);
-          setCurrentPage(prev => Math.min(prev + 1, totalPages));
-          container.scrollTop = 0;
-          setTimeout(() => setIsScrolling(false), 300);
-        } else if (e.deltaY < 0 && atTop && currentPage > 1 && !isScrolling) {
-          e.preventDefault();
-          setIsScrolling(true);
-          setCurrentPage(prev => Math.max(prev - 1, 1));
-          setTimeout(() => setIsScrolling(false), 300);
-        }
-        return;
-      }
-
-      // If content fits on screen, use wheel to change pages
-      if (!isScrolling) {
-        wheelAccumulator.current += e.deltaY;
-        
-        // Need accumulated scroll to trigger page change (prevents accidental swipes)
-        if (Math.abs(wheelAccumulator.current) > 100) {
-          if (wheelAccumulator.current > 0 && currentPage < totalPages) {
-            setIsScrolling(true);
-            setCurrentPage(prev => Math.min(prev + 1, totalPages));
-            setTimeout(() => setIsScrolling(false), 300);
-          } else if (wheelAccumulator.current < 0 && currentPage > 1) {
-            setIsScrolling(true);
-            setCurrentPage(prev => Math.max(prev - 1, 1));
-            setTimeout(() => setIsScrolling(false), 300);
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestPage = i;
           }
-          wheelAccumulator.current = 0;
         }
-        
-        // Reset accumulator after a pause
-        if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-        scrollTimeoutRef.current = setTimeout(() => {
-          wheelAccumulator.current = 0;
-        }, 200);
+      }
+
+      if (closestPage !== currentPage) {
+        setCurrentPage(closestPage);
       }
     };
 
-    // Touch events for swipe navigation on mobile
-    const handleTouchStart = (e) => {
-      touchStartY.current = e.touches[0].clientY;
-    };
-
-    const handleTouchMove = (e) => {
-      touchEndY.current = e.touches[0].clientY;
-    };
-
-    const handleTouchEnd = () => {
-      const swipeDistance = touchStartY.current - touchEndY.current;
-      const minSwipeDistance = 80; // Minimum swipe distance to trigger page change
-
-      const scrollTop = container.scrollTop;
-      const scrollHeight = container.scrollHeight;
-      const clientHeight = container.clientHeight;
-      const canScroll = scrollHeight > clientHeight + 10;
-      const atBottom = scrollTop + clientHeight >= scrollHeight - 10;
-      const atTop = scrollTop <= 10;
-
-      if (Math.abs(swipeDistance) > minSwipeDistance && !isScrolling) {
-        // Swipe up (next page) - only if at bottom or can't scroll
-        if (swipeDistance > 0 && currentPage < totalPages && (!canScroll || atBottom)) {
-          setIsScrolling(true);
-          setCurrentPage(prev => Math.min(prev + 1, totalPages));
-          container.scrollTop = 0;
-          setTimeout(() => setIsScrolling(false), 300);
-        }
-        // Swipe down (previous page) - only if at top or can't scroll
-        else if (swipeDistance < 0 && currentPage > 1 && (!canScroll || atTop)) {
-          setIsScrolling(true);
-          setCurrentPage(prev => Math.max(prev - 1, 1));
-          setTimeout(() => setIsScrolling(false), 300);
-        }
-      }
-      
-      touchStartY.current = 0;
-      touchEndY.current = 0;
-    };
-
-    container.addEventListener("scroll", handleScroll);
-    container.addEventListener("wheel", handleWheel, { passive: false });
-    container.addEventListener("touchstart", handleTouchStart);
-    container.addEventListener("touchmove", handleTouchMove);
-    container.addEventListener("touchend", handleTouchEnd);
-    
-    return () => {
-      container.removeEventListener("scroll", handleScroll);
-      container.removeEventListener("wheel", handleWheel);
-      container.removeEventListener("touchstart", handleTouchStart);
-      container.removeEventListener("touchmove", handleTouchMove);
-      container.removeEventListener("touchend", handleTouchEnd);
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-  }, [currentPage, totalPages, isScrolling]);
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [totalPages, currentPage]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
       switch (e.key) {
-        case "ArrowRight":
-        case "ArrowDown":
-        case " ":
-          e.preventDefault();
-          goToNextPage();
-          break;
-        case "ArrowLeft":
-        case "ArrowUp":
-          e.preventDefault();
-          goToPrevPage();
-          break;
         case "Escape":
           onClose();
           break;
@@ -242,14 +106,23 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentPage, totalPages]);
+  }, []);
 
   // Save progress when page changes
   useEffect(() => {
-    if (pdf?.id) {
-      onProgressUpdate(pdf.id, currentPage, totalPages);
+    if (pdf?._id || pdf?.id) {
+      onProgressUpdate(pdf._id || pdf.id, currentPage, totalPages);
     }
-  }, [currentPage, totalPages, pdf?.id]);
+  }, [currentPage, totalPages, pdf?._id, pdf?.id]);
+
+  // Scroll to last read page on initial load
+  useEffect(() => {
+    if (!isLoading && pdf.lastPage > 1 && pageRefs.current[pdf.lastPage]) {
+      setTimeout(() => {
+        scrollToPage(pdf.lastPage);
+      }, 500);
+    }
+  }, [isLoading, pdf.lastPage]);
 
   const onDocumentLoadSuccess = ({ numPages }) => {
     setTotalPages(numPages);
@@ -263,34 +136,26 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
     setIsLoading(false);
   };
 
-  const goToNextPage = useCallback(() => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-      // Scroll to top of page
-      if (pageContainerRef.current) {
-        pageContainerRef.current.scrollTop = 0;
-      }
-    }
-  }, [currentPage, totalPages]);
+  const onPageLoadSuccess = (pageNum) => {
+    setPagesLoaded((prev) => ({ ...prev, [pageNum]: true }));
+  };
 
-  const goToPrevPage = useCallback(() => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-      // Scroll to top of page
-      if (pageContainerRef.current) {
-        pageContainerRef.current.scrollTop = 0;
-      }
+  const scrollToPage = useCallback((pageNum) => {
+    const pageEl = pageRefs.current[pageNum];
+    if (pageEl && scrollContainerRef.current) {
+      isScrollingRef.current = true;
+      pageEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      setCurrentPage(pageNum);
+      setTimeout(() => {
+        isScrollingRef.current = false;
+      }, 500);
     }
-  }, [currentPage]);
+  }, []);
 
   const goToPage = (page) => {
     const pageNum = parseInt(page);
     if (pageNum >= 1 && pageNum <= totalPages) {
-      setCurrentPage(pageNum);
-      // Scroll to top of page
-      if (pageContainerRef.current) {
-        pageContainerRef.current.scrollTop = 0;
-      }
+      scrollToPage(pageNum);
     }
   };
 
@@ -318,7 +183,7 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
     return ((currentPage / totalPages) * 100).toFixed(0);
   };
 
-  // Get the PDF source (handle both base64 and URL)
+  // Get the PDF source
   const getPdfSource = () => {
     const data = pdf.fileData || pdf.data;
     if (!data) return null;
@@ -335,9 +200,7 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
       {/* Top Toolbar */}
       <div
         className={`${
-          isDarkMode
-            ? "bg-gray-800 border-gray-700"
-            : "bg-white border-gray-200"
+          isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
         } border-b shadow-lg z-10 flex-shrink-0`}
       >
         <div className="flex items-center justify-between px-2 sm:px-4 py-2">
@@ -366,10 +229,10 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
             </div>
           </div>
 
-          {/* Center Section - Navigation */}
+          {/* Center Section - Page Navigation */}
           <div className="flex items-center gap-1 sm:gap-2">
             <button
-              onClick={goToPrevPage}
+              onClick={() => scrollToPage(Math.max(1, currentPage - 1))}
               disabled={currentPage <= 1}
               className={`p-2 sm:p-3 rounded-lg transition-all disabled:opacity-30 text-lg sm:text-xl ${
                 isDarkMode
@@ -394,24 +257,16 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
                 min={1}
                 max={totalPages}
               />
-              <span
-                className={`text-sm ${
-                  isDarkMode ? "text-gray-400" : "text-gray-500"
-                }`}
-              >
+              <span className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
                 /
               </span>
-              <span
-                className={`font-sweet text-sm sm:text-base ${
-                  isDarkMode ? "text-gray-300" : "text-gray-600"
-                }`}
-              >
+              <span className={`font-sweet text-sm sm:text-base ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>
                 {totalPages}
               </span>
             </div>
 
             <button
-              onClick={goToNextPage}
+              onClick={() => scrollToPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage >= totalPages}
               className={`p-2 sm:p-3 rounded-lg transition-all disabled:opacity-30 text-lg sm:text-xl ${
                 isDarkMode
@@ -426,7 +281,6 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
 
           {/* Right Section - Tools */}
           <div className="flex items-center gap-0.5 sm:gap-1">
-            {/* Zoom Button */}
             <button
               onClick={() => setShowMobileZoom(!showMobileZoom)}
               className={`p-2 rounded-lg transition-all ${
@@ -492,9 +346,7 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
         {showMobileZoom && (
           <div
             className={`flex items-center justify-center gap-3 py-3 border-t ${
-              isDarkMode
-                ? "bg-gray-750 border-gray-700"
-                : "bg-gray-50 border-gray-200"
+              isDarkMode ? "bg-gray-750 border-gray-700" : "bg-gray-50 border-gray-200"
             }`}
           >
             <button
@@ -509,9 +361,7 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
             </button>
             <div
               className={`px-4 py-2 rounded-xl font-sweet font-bold text-lg min-w-[80px] text-center ${
-                isDarkMode
-                  ? "bg-gray-700 text-gray-200"
-                  : "bg-white text-gray-700 shadow"
+                isDarkMode ? "bg-gray-700 text-gray-200" : "bg-white text-gray-700 shadow"
               }`}
             >
               {Math.round(zoom * 100)}%
@@ -540,9 +390,7 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
         )}
 
         {/* Progress Bar */}
-        <div
-          className={`h-1.5 ${isDarkMode ? "bg-gray-700" : "bg-gray-200"}`}
-        >
+        <div className={`h-1.5 ${isDarkMode ? "bg-gray-700" : "bg-gray-200"}`}>
           <div
             className="h-full bg-gradient-to-r from-rose-400 to-pink-400 transition-all duration-300"
             style={{ width: `${getProgress()}%` }}
@@ -550,89 +398,131 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
         </div>
       </div>
 
-      {/* Main Content Area - PDF */}
+      {/* Main Content Area - Continuous Scrolling PDF */}
       <div
-        ref={pageContainerRef}
+        ref={scrollContainerRef}
         className={`flex-1 overflow-auto ${
           isDarkMode ? "bg-gray-900" : "bg-gray-100"
         }`}
-        style={{ height: isMobile ? 'calc(100vh - 120px)' : 'auto' }}
+        style={{ 
+          WebkitOverflowScrolling: "touch",
+          scrollBehavior: "smooth"
+        }}
       >
-        <div className={`flex justify-center ${isMobile ? 'min-h-full items-start' : 'py-4 min-h-full'}`}>
-          {isLoading && !loadError && (
-            <div className="flex flex-col items-center justify-center gap-4 py-20 absolute inset-0 z-10">
-              <div className="w-16 h-16 border-4 border-rose-200 border-t-rose-400 rounded-full animate-spin" />
-              <p
-                className={`font-sweet ${
-                  isDarkMode ? "text-gray-400" : "text-gray-500"
-                }`}
-              >
-                Loading your PDF... 📚
-              </p>
-            </div>
-          )}
+        {isLoading && !loadError && (
+          <div className="flex flex-col items-center justify-center gap-4 py-20">
+            <div className="w-16 h-16 border-4 border-rose-200 border-t-rose-400 rounded-full animate-spin" />
+            <p className={`font-sweet ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+              Loading your PDF... 📚
+            </p>
+          </div>
+        )}
 
-          {loadError && (
-            <div className="flex flex-col items-center justify-center gap-4 py-20">
-              <span className="text-6xl">😿</span>
-              <p
-                className={`font-sweet text-lg ${
-                  isDarkMode ? "text-gray-400" : "text-gray-500"
-                }`}
-              >
-                {loadError}
-              </p>
-              <button
-                onClick={onClose}
-                className="px-6 py-3 bg-rose-400 hover:bg-rose-500 text-white rounded-xl font-sweet transition-colors"
-              >
-                Go Back
-              </button>
-            </div>
-          )}
-
-          {!loadError && (
-            <Document
-              file={getPdfSource()}
-              onLoadSuccess={onDocumentLoadSuccess}
-              onLoadError={onDocumentLoadError}
-              loading=""
-              error=""
-              className={`flex flex-col items-center ${isMobile ? 'w-full' : ''}`}
+        {loadError && (
+          <div className="flex flex-col items-center justify-center gap-4 py-20">
+            <span className="text-6xl">😿</span>
+            <p className={`font-sweet text-lg ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+              {loadError}
+            </p>
+            <button
+              onClick={onClose}
+              className="px-6 py-3 bg-rose-400 hover:bg-rose-500 text-white rounded-xl font-sweet transition-colors"
             >
-              <Page
-                pageNumber={currentPage}
-                width={pageWidth ? pageWidth * zoom : undefined}
-                className={`${isMobile ? 'w-full' : 'shadow-2xl rounded-lg'} overflow-hidden`}
-                renderTextLayer={!isMobile}
-                renderAnnotationLayer={!isMobile}
-                loading={
-                  <div className="flex items-center justify-center p-20 bg-white rounded-lg shadow-2xl">
-                    <div className="w-10 h-10 border-4 border-rose-200 border-t-rose-400 rounded-full animate-spin" />
+              Go Back
+            </button>
+          </div>
+        )}
+
+        {!loadError && (
+          <Document
+            file={getPdfSource()}
+            onLoadSuccess={onDocumentLoadSuccess}
+            onLoadError={onDocumentLoadError}
+            loading=""
+            error=""
+            className="flex flex-col items-center"
+          >
+            {/* Render ALL pages for continuous scrolling like Google Drive */}
+            {Array.from({ length: totalPages }, (_, index) => {
+              const pageNum = index + 1;
+              return (
+                <div
+                  key={pageNum}
+                  ref={(el) => (pageRefs.current[pageNum] = el)}
+                  className={`relative ${isMobile ? "w-full" : "my-3"}`}
+                  id={`page-${pageNum}`}
+                >
+                  {/* Page number indicator */}
+                  <div
+                    className={`absolute top-2 left-2 z-10 px-2 py-1 rounded-lg text-xs font-sweet ${
+                      isDarkMode
+                        ? "bg-gray-800/90 text-gray-300"
+                        : "bg-white/90 text-gray-600 shadow-sm"
+                    } ${isMobile ? "text-[10px] px-1.5 py-0.5" : ""}`}
+                  >
+                    {pageNum} / {totalPages}
                   </div>
-                }
-              />
-            </Document>
-          )}
-        </div>
+
+                  <Page
+                    pageNumber={pageNum}
+                    width={pageWidth ? pageWidth * zoom : undefined}
+                    className={`${isMobile ? "" : "shadow-xl rounded-lg"} overflow-hidden`}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                    onLoadSuccess={() => onPageLoadSuccess(pageNum)}
+                    loading={
+                      <div
+                        className={`flex items-center justify-center bg-white ${
+                          isMobile ? "h-[70vh] w-full" : "h-[700px] w-[500px] rounded-lg shadow-xl my-3"
+                        }`}
+                      >
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="w-10 h-10 border-4 border-rose-200 border-t-rose-400 rounded-full animate-spin" />
+                          <span className="font-sweet text-gray-400 text-sm">Page {pageNum}...</span>
+                        </div>
+                      </div>
+                    }
+                  />
+
+                  {/* Page separator */}
+                  {pageNum < totalPages && (
+                    <div className={`${isMobile ? "h-1" : "h-3"} ${isDarkMode ? "bg-gray-800" : "bg-gray-200"}`} />
+                  )}
+                </div>
+              );
+            })}
+
+            {/* End of document indicator */}
+            <div className={`py-8 text-center ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
+              <span className="text-3xl mb-2 block">📚</span>
+              <p className="font-sweet text-sm">End of Document</p>
+              <p className="font-sweet text-xs mt-1">{totalPages} pages • {pdf.name}</p>
+            </div>
+          </Document>
+        )}
+      </div>
+
+      {/* Floating Page Indicator */}
+      <div
+        className={`fixed bottom-20 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full shadow-lg font-sweet text-sm z-20 ${
+          isDarkMode ? "bg-gray-800 text-gray-200" : "bg-white text-gray-700"
+        }`}
+      >
+        📄 {currentPage} / {totalPages} • {getProgress()}%
       </div>
 
       {/* Bottom Quick Navigation */}
       <div
         className={`${
-          isDarkMode
-            ? "bg-gray-800 border-gray-700"
-            : "bg-white border-gray-200"
+          isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
         } border-t py-2 px-2 sm:px-4 flex-shrink-0`}
       >
         <div className="flex items-center justify-center gap-2 sm:gap-4">
           <button
-            onClick={() => setCurrentPage(1)}
+            onClick={() => scrollToPage(1)}
             disabled={currentPage === 1}
             className={`font-sweet text-xs sm:text-sm disabled:opacity-30 px-2 py-1.5 rounded-lg ${
-              isDarkMode
-                ? "text-gray-300 hover:bg-gray-700"
-                : "text-gray-600 hover:bg-gray-100"
+              isDarkMode ? "text-gray-300 hover:bg-gray-700" : "text-gray-600 hover:bg-gray-100"
             }`}
           >
             ⏮ <span className="hidden sm:inline">First</span>
@@ -641,22 +531,15 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
           <div className="flex items-center gap-1 sm:gap-2">
             {/* Quick page buttons */}
             {Array.from(
-              {
-                length: isMobile
-                  ? Math.min(3, totalPages)
-                  : Math.min(5, totalPages),
-              },
+              { length: isMobile ? Math.min(5, totalPages) : Math.min(7, totalPages) },
               (_, i) => {
                 let page;
-                const visiblePages = isMobile ? 3 : 5;
+                const visiblePages = isMobile ? 5 : 7;
                 if (totalPages <= visiblePages) {
                   page = i + 1;
                 } else if (currentPage <= Math.ceil(visiblePages / 2)) {
                   page = i + 1;
-                } else if (
-                  currentPage >=
-                  totalPages - Math.floor(visiblePages / 2)
-                ) {
+                } else if (currentPage >= totalPages - Math.floor(visiblePages / 2)) {
                   page = totalPages - visiblePages + 1 + i;
                 } else {
                   page = currentPage - Math.floor(visiblePages / 2) + i;
@@ -664,7 +547,7 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
                 return (
                   <button
                     key={page}
-                    onClick={() => setCurrentPage(page)}
+                    onClick={() => scrollToPage(page)}
                     className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg font-sweet text-sm transition-all ${
                       currentPage === page
                         ? "bg-rose-400 text-white shadow-md"
@@ -681,25 +564,14 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
           </div>
 
           <button
-            onClick={() => setCurrentPage(totalPages)}
+            onClick={() => scrollToPage(totalPages)}
             disabled={currentPage === totalPages}
             className={`font-sweet text-xs sm:text-sm disabled:opacity-30 px-2 py-1.5 rounded-lg ${
-              isDarkMode
-                ? "text-gray-300 hover:bg-gray-700"
-                : "text-gray-600 hover:bg-gray-100"
+              isDarkMode ? "text-gray-300 hover:bg-gray-700" : "text-gray-600 hover:bg-gray-100"
             }`}
           >
             <span className="hidden sm:inline">Last</span> ⏭
           </button>
-        </div>
-
-        {/* Page indicator */}
-        <div
-          className={`text-center mt-1 font-sweet text-xs ${
-            isDarkMode ? "text-gray-500" : "text-gray-400"
-          }`}
-        >
-          📄 Page {currentPage} of {totalPages} • {getProgress()}% complete
         </div>
       </div>
     </div>

@@ -519,24 +519,34 @@ body {
   display: none !important;
 }
 
-/* Mobile PDF full width and height */
+/* Continuous scroll PDF viewer - works on all devices */
+.react-pdf__Document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Mobile PDF full width */
 @media (max-width: 767px) {
   .react-pdf__Document {
     width: 100% !important;
-    min-height: 100% !important;
   }
-  
+
   .react-pdf__Page {
     width: 100% !important;
-    min-height: calc(100vh - 150px) !important;
   }
-  
+
   .react-pdf__Page__canvas {
     width: 100% !important;
     height: auto !important;
-    min-height: calc(100vh - 150px) !important;
-    object-fit: contain !important;
   }
+}
+
+/* Smooth scrolling for PDF container */
+.pdf-scroll-container {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
 }
 
 /* Loading bar animation for PDF opening */
