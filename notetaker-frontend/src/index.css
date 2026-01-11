@@ -519,19 +519,23 @@ body {
   display: none !important;
 }
 
-/* Mobile PDF full width */
+/* Mobile PDF full width and height */
 @media (max-width: 767px) {
   .react-pdf__Document {
     width: 100% !important;
+    min-height: 100% !important;
   }
   
   .react-pdf__Page {
     width: 100% !important;
+    min-height: calc(100vh - 150px) !important;
   }
   
   .react-pdf__Page__canvas {
     width: 100% !important;
     height: auto !important;
+    min-height: calc(100vh - 150px) !important;
+    object-fit: contain !important;
   }
 }
 

@@ -556,8 +556,9 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
         className={`flex-1 overflow-auto ${
           isDarkMode ? "bg-gray-900" : "bg-gray-100"
         }`}
+        style={{ height: isMobile ? 'calc(100vh - 120px)' : 'auto' }}
       >
-        <div className="flex justify-center py-0 sm:py-4 min-h-full">
+        <div className={`flex justify-center ${isMobile ? 'min-h-full items-start' : 'py-4 min-h-full'}`}>
           {isLoading && !loadError && (
             <div className="flex flex-col items-center justify-center gap-4 py-20 absolute inset-0 z-10">
               <div className="w-16 h-16 border-4 border-rose-200 border-t-rose-400 rounded-full animate-spin" />
