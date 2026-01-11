@@ -121,6 +121,8 @@ const StudyNotes = ({ onPdfViewChange }) => {
   const [totalFiles, setTotalFiles] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState("grid"); // grid or list
+  const [isOpeningPdf, setIsOpeningPdf] = useState(false); // Loading state for opening PDF
+  const [openingPdfName, setOpeningPdfName] = useState(""); // Name of PDF being opened
   const fileInputRef = useRef(null);
 
   // Confirmation dialog states
@@ -500,6 +502,10 @@ const StudyNotes = ({ onPdfViewChange }) => {
       return;
     }
 
+    // Show loading state
+    setIsOpeningPdf(true);
+    setOpeningPdfName(pdf.name);
+
     // Otherwise, fetch the full PDF from API
     try {
       const response = await studyApi.getPdf(pdfId);
@@ -512,6 +518,9 @@ const StudyNotes = ({ onPdfViewChange }) => {
     } catch (error) {
       console.error("Failed to fetch PDF:", error);
       setSelectedPdf(pdf); // Fallback
+    } finally {
+      setIsOpeningPdf(false);
+      setOpeningPdfName("");
     }
   };
 
@@ -557,6 +566,37 @@ const StudyNotes = ({ onPdfViewChange }) => {
 
   return (
     <div className="max-w-6xl mx-auto px-2 sm:px-4 py-4 sm:py-8">
+      {/* Loading Overlay when opening PDF */}
+      {isOpeningPdf && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl p-8 shadow-2xl max-w-sm w-full mx-4 animate-scale-in text-center">
+            {/* Animated book icon */}
+            <div className="relative w-24 h-24 mx-auto mb-6">
+              <span className="text-6xl animate-bounce block">📖</span>
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-16 h-2 bg-rose-200 rounded-full animate-pulse"></div>
+            </div>
+            
+            {/* Loading text */}
+            <h3 className="font-romantic text-2xl gradient-text mb-2">
+              Opening PDF
+            </h3>
+            <p className="font-sweet text-gray-500 mb-4 truncate px-4">
+              {openingPdfName}
+            </p>
+            
+            {/* Loading bar */}
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-rose-400 via-pink-400 to-rose-400 rounded-full animate-loading-bar"></div>
+            </div>
+            
+            {/* Cute message */}
+            <p className="font-sweet text-sm text-rose-400 mt-4 animate-pulse">
+              Preparing your study material... 💕
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="text-center mb-6 sm:mb-8 animate-fade-in">
         <h2 className="font-romantic text-2xl sm:text-4xl gradient-text mb-2">

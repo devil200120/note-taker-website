@@ -14,9 +14,15 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [pageWidth, setPageWidth] = useState(null);
   const [loadError, setLoadError] = useState(null);
+  const [isScrolling, setIsScrolling] = useState(false);
 
   const containerRef = useRef(null);
   const pageContainerRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
+  const lastScrollY = useRef(0);
+  const touchStartY = useRef(0);
+  const touchEndY = useRef(0);
+  const wheelAccumulator = useRef(0);
 
   const zoomLevels = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
 
@@ -34,6 +40,165 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [isMobile]);
+
+  // Handle scroll to change pages
+  useEffect(() => {
+    const container = pageContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const scrollTop = container.scrollTop;
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      
+      // Determine scroll direction
+      const scrollingDown = scrollTop > lastScrollY.current;
+      lastScrollY.current = scrollTop;
+
+      // Clear existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
+      // Check if we've scrolled to the bottom (go to next page)
+      if (scrollingDown && scrollTop + clientHeight >= scrollHeight - 50) {
+        if (currentPage < totalPages && !isScrolling) {
+          setIsScrolling(true);
+          scrollTimeoutRef.current = setTimeout(() => {
+            setCurrentPage(prev => Math.min(prev + 1, totalPages));
+            container.scrollTop = 0;
+            setIsScrolling(false);
+          }, 150);
+        }
+      }
+      
+      // Check if we've scrolled to the top (go to previous page)
+      if (!scrollingDown && scrollTop <= 10) {
+        if (currentPage > 1 && !isScrolling) {
+          setIsScrolling(true);
+          scrollTimeoutRef.current = setTimeout(() => {
+            setCurrentPage(prev => Math.max(prev - 1, 1));
+            // Scroll to bottom of previous page
+            setTimeout(() => {
+              container.scrollTop = container.scrollHeight;
+            }, 100);
+            setIsScrolling(false);
+          }, 150);
+        }
+      }
+    };
+
+    // Handle wheel event for page navigation when content doesn't scroll
+    const handleWheel = (e) => {
+      const scrollTop = container.scrollTop;
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      const canScroll = scrollHeight > clientHeight + 10;
+
+      // If content can scroll normally, let it scroll
+      if (canScroll) {
+        const atBottom = scrollTop + clientHeight >= scrollHeight - 10;
+        const atTop = scrollTop <= 10;
+        
+        // Only handle page change at boundaries
+        if (e.deltaY > 0 && atBottom && currentPage < totalPages && !isScrolling) {
+          e.preventDefault();
+          setIsScrolling(true);
+          setCurrentPage(prev => Math.min(prev + 1, totalPages));
+          container.scrollTop = 0;
+          setTimeout(() => setIsScrolling(false), 300);
+        } else if (e.deltaY < 0 && atTop && currentPage > 1 && !isScrolling) {
+          e.preventDefault();
+          setIsScrolling(true);
+          setCurrentPage(prev => Math.max(prev - 1, 1));
+          setTimeout(() => setIsScrolling(false), 300);
+        }
+        return;
+      }
+
+      // If content fits on screen, use wheel to change pages
+      if (!isScrolling) {
+        wheelAccumulator.current += e.deltaY;
+        
+        // Need accumulated scroll to trigger page change (prevents accidental swipes)
+        if (Math.abs(wheelAccumulator.current) > 100) {
+          if (wheelAccumulator.current > 0 && currentPage < totalPages) {
+            setIsScrolling(true);
+            setCurrentPage(prev => Math.min(prev + 1, totalPages));
+            setTimeout(() => setIsScrolling(false), 300);
+          } else if (wheelAccumulator.current < 0 && currentPage > 1) {
+            setIsScrolling(true);
+            setCurrentPage(prev => Math.max(prev - 1, 1));
+            setTimeout(() => setIsScrolling(false), 300);
+          }
+          wheelAccumulator.current = 0;
+        }
+        
+        // Reset accumulator after a pause
+        if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = setTimeout(() => {
+          wheelAccumulator.current = 0;
+        }, 200);
+      }
+    };
+
+    // Touch events for swipe navigation on mobile
+    const handleTouchStart = (e) => {
+      touchStartY.current = e.touches[0].clientY;
+    };
+
+    const handleTouchMove = (e) => {
+      touchEndY.current = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = () => {
+      const swipeDistance = touchStartY.current - touchEndY.current;
+      const minSwipeDistance = 80; // Minimum swipe distance to trigger page change
+
+      const scrollTop = container.scrollTop;
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      const canScroll = scrollHeight > clientHeight + 10;
+      const atBottom = scrollTop + clientHeight >= scrollHeight - 10;
+      const atTop = scrollTop <= 10;
+
+      if (Math.abs(swipeDistance) > minSwipeDistance && !isScrolling) {
+        // Swipe up (next page) - only if at bottom or can't scroll
+        if (swipeDistance > 0 && currentPage < totalPages && (!canScroll || atBottom)) {
+          setIsScrolling(true);
+          setCurrentPage(prev => Math.min(prev + 1, totalPages));
+          container.scrollTop = 0;
+          setTimeout(() => setIsScrolling(false), 300);
+        }
+        // Swipe down (previous page) - only if at top or can't scroll
+        else if (swipeDistance < 0 && currentPage > 1 && (!canScroll || atTop)) {
+          setIsScrolling(true);
+          setCurrentPage(prev => Math.max(prev - 1, 1));
+          setTimeout(() => setIsScrolling(false), 300);
+        }
+      }
+      
+      touchStartY.current = 0;
+      touchEndY.current = 0;
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    container.addEventListener("touchstart", handleTouchStart);
+    container.addEventListener("touchmove", handleTouchMove);
+    container.addEventListener("touchend", handleTouchEnd);
+    
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, [currentPage, totalPages, isScrolling]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -97,12 +262,20 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
   const goToNextPage = useCallback(() => {
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
+      // Scroll to top of page
+      if (pageContainerRef.current) {
+        pageContainerRef.current.scrollTop = 0;
+      }
     }
   }, [currentPage, totalPages]);
 
   const goToPrevPage = useCallback(() => {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
+      // Scroll to top of page
+      if (pageContainerRef.current) {
+        pageContainerRef.current.scrollTop = 0;
+      }
     }
   }, [currentPage]);
 
@@ -110,6 +283,10 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
     const pageNum = parseInt(page);
     if (pageNum >= 1 && pageNum <= totalPages) {
       setCurrentPage(pageNum);
+      // Scroll to top of page
+      if (pageContainerRef.current) {
+        pageContainerRef.current.scrollTop = 0;
+      }
     }
   };
 

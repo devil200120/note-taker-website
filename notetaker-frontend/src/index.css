@@ -517,3 +517,23 @@ body {
 .react-pdf__Page__annotations {
   display: none !important;
 }
+
+/* Loading bar animation for PDF opening */
+@keyframes loadingBar {
+  0% {
+    width: 0%;
+    margin-left: 0%;
+  }
+  50% {
+    width: 60%;
+    margin-left: 20%;
+  }
+  100% {
+    width: 0%;
+    margin-left: 100%;
+  }
+}
+
+.animate-loading-bar {
+  animation: loadingBar 1.5s ease-in-out infinite;
+}
