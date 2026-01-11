@@ -369,25 +369,29 @@ function App() {
           {/* Theme Selector - Fixed Position */}
           {!isViewingPdf && <ThemeSelector theme={theme} setTheme={setTheme} themes={themes} />}
 
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="fixed top-4 left-4 z-50 lg:hidden bg-white/80 backdrop-blur-sm p-3 rounded-full shadow-lg hover:scale-110 transition-transform"
-          >
-            <span className="text-2xl">{sidebarOpen ? "✕" : "☰"}</span>
-          </button>
+          {/* Mobile Menu Button - Hide when viewing PDF */}
+          {!isViewingPdf && (
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="fixed top-4 left-4 z-50 lg:hidden bg-white/80 backdrop-blur-sm p-3 rounded-full shadow-lg hover:scale-110 transition-transform"
+            >
+              <span className="text-2xl">{sidebarOpen ? "✕" : "☰"}</span>
+            </button>
+          )}
 
-          {/* Sidebar */}
-          <Sidebar
-            currentSection={currentSection}
-            setCurrentSection={setCurrentSection}
-            isOpen={sidebarOpen}
-            setIsOpen={setSidebarOpen}
-            isCollapsed={sidebarCollapsed}
-            setIsCollapsed={setSidebarCollapsed}
-            notesCount={notes.filter((n) => !n.isArchived).length}
-            archivedCount={archivedNotes.length}
-          />
+          {/* Sidebar - Hide when viewing PDF on mobile */}
+          {!isViewingPdf && (
+            <Sidebar
+              currentSection={currentSection}
+              setCurrentSection={setCurrentSection}
+              isOpen={sidebarOpen}
+              setIsOpen={setSidebarOpen}
+              isCollapsed={sidebarCollapsed}
+              setIsCollapsed={setSidebarCollapsed}
+              notesCount={notes.filter((n) => !n.isArchived).length}
+              archivedCount={archivedNotes.length}
+            />
+          )}
 
           {/* Main Content */}
           <div className={`relative z-10 min-h-screen transition-all duration-300 ${sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"}`}>

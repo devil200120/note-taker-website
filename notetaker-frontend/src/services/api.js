@@ -335,12 +335,49 @@ export const studyApi = {
   // Get single PDF (with file data)
   getPdf: (id) => apiCall(`/study/pdfs/${id}`),
 
-  // Upload PDF
-  uploadPdf: (pdfData) =>
-    apiCall("/study/pdfs", {
-      method: "POST",
-      body: JSON.stringify(pdfData),
-    }),
+  // Upload PDF with progress tracking
+  uploadPdf: (pdfData, onProgress) => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const token = getToken();
+      
+      // Track upload progress
+      xhr.upload.addEventListener("progress", (event) => {
+        if (event.lengthComputable && onProgress) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          onProgress(percentComplete);
+        }
+      });
+      
+      xhr.addEventListener("load", () => {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(response);
+          } else {
+            reject(new Error(response.message || "Upload failed"));
+          }
+        } catch (error) {
+          reject(new Error("Failed to parse response"));
+        }
+      });
+      
+      xhr.addEventListener("error", () => {
+        reject(new Error("Network error during upload"));
+      });
+      
+      xhr.addEventListener("abort", () => {
+        reject(new Error("Upload cancelled"));
+      });
+      
+      xhr.open("POST", `${API_URL}/study/pdfs`);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      if (token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      }
+      xhr.send(JSON.stringify(pdfData));
+    });
+  },
 
   // Update PDF
   updatePdf: (id, pdfData) =>

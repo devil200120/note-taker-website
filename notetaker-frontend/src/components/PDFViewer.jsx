@@ -17,11 +17,22 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
   const [notes, setNotes] = useState([]);
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [newNote, setNewNote] = useState("");
+  const [showMobileZoom, setShowMobileZoom] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   const containerRef = useRef(null);
   const iframeRef = useRef(null);
 
   const zoomLevels = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
+
+  // Detect mobile/desktop
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -205,21 +216,22 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
             : "bg-white border-gray-200"
         } border-b shadow-lg z-10`}
       >
-        <div className="flex items-center justify-between px-4 py-2">
-          {/* Left Section */}
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between px-2 sm:px-4 py-2">
+          {/* Left Section - Back Button */}
+          <div className="flex items-center gap-1 sm:gap-3">
             <button
               onClick={onClose}
-              className={`p-2 rounded-lg transition-all ${
+              className={`flex items-center gap-1 px-3 py-2 rounded-xl transition-all font-sweet ${
                 isDarkMode
-                  ? "hover:bg-gray-700 text-gray-300"
-                  : "hover:bg-rose-50 text-gray-600"
+                  ? "bg-gray-700 hover:bg-gray-600 text-gray-200"
+                  : "bg-rose-100 hover:bg-rose-200 text-rose-600"
               }`}
               title="Close (Esc)"
             >
-              ✕
+              <span className="text-lg">←</span>
+              <span className="text-sm font-medium hidden sm:inline">Back</span>
             </button>
-            <div className="hidden sm:block">
+            <div className="hidden md:block">
               <h3
                 className={`font-sweet font-semibold truncate max-w-[200px] ${
                   isDarkMode ? "text-gray-200" : "text-gray-700"
@@ -231,11 +243,11 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
           </div>
 
           {/* Center Section - Navigation */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               onClick={goToPrevPage}
               disabled={currentPage <= 1}
-              className={`p-2 rounded-lg transition-all disabled:opacity-30 ${
+              className={`p-2 sm:p-3 rounded-lg transition-all disabled:opacity-30 text-lg sm:text-xl ${
                 isDarkMode
                   ? "hover:bg-gray-700 text-gray-300"
                   : "hover:bg-rose-50 text-gray-600"
@@ -245,12 +257,12 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
               ◀
             </button>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <input
                 type="number"
                 value={currentPage}
                 onChange={(e) => goToPage(e.target.value)}
-                className={`w-14 text-center py-1 px-2 rounded-lg border font-sweet ${
+                className={`w-10 sm:w-14 text-center py-1 px-1 sm:px-2 rounded-lg border font-sweet text-sm sm:text-base ${
                   isDarkMode
                     ? "bg-gray-700 border-gray-600 text-gray-200"
                     : "bg-white border-gray-200 text-gray-700"
@@ -258,11 +270,11 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
                 min={1}
                 max={totalPages}
               />
-              <span className={isDarkMode ? "text-gray-400" : "text-gray-500"}>
+              <span className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
                 /
               </span>
               <span
-                className={`font-sweet ${
+                className={`font-sweet text-sm sm:text-base ${
                   isDarkMode ? "text-gray-300" : "text-gray-600"
                 }`}
               >
@@ -273,7 +285,7 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
             <button
               onClick={goToNextPage}
               disabled={currentPage >= totalPages}
-              className={`p-2 rounded-lg transition-all disabled:opacity-30 ${
+              className={`p-2 sm:p-3 rounded-lg transition-all disabled:opacity-30 text-lg sm:text-xl ${
                 isDarkMode
                   ? "hover:bg-gray-700 text-gray-300"
                   : "hover:bg-rose-50 text-gray-600"
@@ -285,9 +297,24 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
           </div>
 
           {/* Right Section - Tools */}
-          <div className="flex items-center gap-1">
-            {/* Zoom Controls */}
-            <div className="hidden sm:flex items-center gap-1 mr-2">
+          <div className="flex items-center gap-0.5 sm:gap-1">
+            {/* Mobile Zoom Button */}
+            <button
+              onClick={() => setShowMobileZoom(!showMobileZoom)}
+              className={`p-2 rounded-lg transition-all md:hidden ${
+                showMobileZoom
+                  ? "bg-rose-400 text-white"
+                  : isDarkMode
+                  ? "hover:bg-gray-700 text-gray-300"
+                  : "hover:bg-rose-50 text-gray-600"
+              }`}
+              title="Zoom"
+            >
+              🔍
+            </button>
+
+            {/* Desktop Zoom Controls */}
+            <div className="hidden md:flex items-center gap-1 mr-2">
               <button
                 onClick={zoomOut}
                 className={`p-2 rounded-lg transition-all ${
@@ -327,10 +354,10 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
               </button>
             </div>
 
-            {/* Other Tools */}
+            {/* Thumbnails - Hidden on very small screens */}
             <button
               onClick={() => setShowThumbnails(!showThumbnails)}
-              className={`p-2 rounded-lg transition-all ${
+              className={`p-2 rounded-lg transition-all hidden sm:block ${
                 showThumbnails
                   ? "bg-rose-400 text-white"
                   : isDarkMode
@@ -356,7 +383,7 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
 
             <button
               onClick={addBookmark}
-              className={`p-2 rounded-lg transition-all ${
+              className={`p-2 rounded-lg transition-all hidden sm:block ${
                 bookmarks.includes(currentPage)
                   ? "text-yellow-500"
                   : isDarkMode
@@ -370,7 +397,7 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
 
             <button
               onClick={() => setShowNoteInput(!showNoteInput)}
-              className={`p-2 rounded-lg transition-all ${
+              className={`p-2 rounded-lg transition-all hidden sm:block ${
                 isDarkMode
                   ? "hover:bg-gray-700 text-gray-300"
                   : "hover:bg-rose-50 text-gray-600"
@@ -394,7 +421,7 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
 
             <button
               onClick={toggleFullscreen}
-              className={`p-2 rounded-lg transition-all ${
+              className={`p-2 rounded-lg transition-all hidden sm:block ${
                 isDarkMode
                   ? "hover:bg-gray-700 text-gray-300"
                   : "hover:bg-rose-50 text-gray-600"
@@ -406,8 +433,51 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
           </div>
         </div>
 
+        {/* Mobile Zoom Panel */}
+        {showMobileZoom && isMobile && (
+          <div className={`flex items-center justify-center gap-3 py-3 border-t ${
+            isDarkMode ? "bg-gray-750 border-gray-700" : "bg-gray-50 border-gray-200"
+          }`}>
+            <button
+              onClick={zoomOut}
+              className={`p-3 rounded-xl transition-all text-xl ${
+                isDarkMode
+                  ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                  : "bg-white hover:bg-rose-50 text-gray-600 shadow"
+              }`}
+            >
+              ➖
+            </button>
+            <div className={`px-4 py-2 rounded-xl font-sweet font-bold text-lg min-w-[80px] text-center ${
+              isDarkMode ? "bg-gray-700 text-gray-200" : "bg-white text-gray-700 shadow"
+            }`}>
+              {Math.round(zoom * 100)}%
+            </div>
+            <button
+              onClick={zoomIn}
+              className={`p-3 rounded-xl transition-all text-xl ${
+                isDarkMode
+                  ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                  : "bg-white hover:bg-rose-50 text-gray-600 shadow"
+              }`}
+            >
+              ➕
+            </button>
+            <button
+              onClick={fitToWidth}
+              className={`px-3 py-2 rounded-xl transition-all text-sm font-sweet ${
+                isDarkMode
+                  ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                  : "bg-white hover:bg-rose-50 text-gray-600 shadow"
+              }`}
+            >
+              Fit
+            </button>
+          </div>
+        )}
+
         {/* Progress Bar */}
-        <div className={`h-1 ${isDarkMode ? "bg-gray-700" : "bg-gray-200"}`}>
+        <div className={`h-1.5 sm:h-1 ${isDarkMode ? "bg-gray-700" : "bg-gray-200"}`}>
           <div
             className="h-full bg-gradient-to-r from-rose-400 to-pink-400 transition-all duration-300"
             style={{ width: `${getProgress()}%` }}
@@ -417,8 +487,8 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
 
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar - Thumbnails/Bookmarks */}
-        {showThumbnails && (
+        {/* Sidebar - Thumbnails/Bookmarks - Hidden on mobile */}
+        {showThumbnails && !isMobile && (
           <div
             className={`w-64 flex-shrink-0 overflow-y-auto border-r ${
               isDarkMode
@@ -504,9 +574,9 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
         )}
 
         {/* PDF View Area */}
-        <div className="flex-1 relative overflow-auto flex items-center justify-center p-4">
+        <div className="flex-1 relative overflow-auto flex items-start sm:items-center justify-center p-0 sm:p-4">
           {isLoading ? (
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-4 py-20">
               <div className="w-16 h-16 border-4 border-rose-200 border-t-rose-400 rounded-full animate-spin" />
               <p
                 className={`font-sweet ${
@@ -518,39 +588,40 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
             </div>
           ) : (
             <div
-              className="relative transition-transform duration-300"
+              className="relative transition-transform duration-300 w-full sm:w-auto"
               style={{
-                transform: `scale(${zoom}) rotate(${rotation}deg)`,
-                transformOrigin: "center center",
+                transform: isMobile ? `scale(${zoom})` : `scale(${zoom}) rotate(${rotation}deg)`,
+                transformOrigin: "top center",
               }}
             >
               {/* PDF Content - Using iframe for base64 PDF */}
               <div
-                className={`shadow-2xl rounded-lg overflow-hidden ${
+                className={`shadow-none sm:shadow-2xl sm:rounded-lg overflow-hidden ${
                   isDarkMode ? "bg-gray-700" : "bg-white"
                 }`}
                 style={{
-                  width: "min(800px, 90vw)",
-                  height: "min(1000px, 80vh)",
+                  width: isMobile ? "100%" : "min(800px, 90vw)",
+                  height: isMobile ? "calc(100vh - 140px)" : "min(1000px, 75vh)",
                 }}
               >
                 <iframe
                   ref={iframeRef}
                   src={`${pdf.fileData || pdf.data}#page=${currentPage}`}
-                  className="w-full h-full"
+                  className="w-full h-full border-0"
                   title={pdf.name}
+                  style={{ minHeight: isMobile ? "calc(100vh - 140px)" : "auto" }}
                 />
               </div>
 
-              {/* Page Number Indicator */}
+              {/* Page Number Indicator - Adjusted for mobile */}
               <div
-                className={`absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full font-sweet text-sm ${
+                className={`absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-sweet text-xs sm:text-sm ${
                   isDarkMode
                     ? "bg-gray-700 text-gray-200"
                     : "bg-white/90 text-gray-600 shadow-lg"
                 }`}
               >
-                Page {currentPage} of {totalPages}
+                📄 {currentPage} / {totalPages}
               </div>
             </div>
           )}
@@ -617,39 +688,40 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
           isDarkMode
             ? "bg-gray-800 border-gray-700"
             : "bg-white border-gray-200"
-        } border-t py-2 px-4`}
+        } border-t py-2 sm:py-2 px-2 sm:px-4`}
       >
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex items-center justify-center gap-2 sm:gap-4">
           <button
             onClick={() => setCurrentPage(1)}
             disabled={currentPage === 1}
-            className={`font-sweet text-sm disabled:opacity-30 ${
-              isDarkMode ? "text-gray-300" : "text-gray-600"
+            className={`font-sweet text-xs sm:text-sm disabled:opacity-30 px-2 py-1.5 rounded-lg ${
+              isDarkMode ? "text-gray-300 hover:bg-gray-700" : "text-gray-600 hover:bg-gray-100"
             }`}
           >
-            ⏮ First
+            ⏮ <span className="hidden sm:inline">First</span>
           </button>
 
-          <div className="flex items-center gap-2">
-            {/* Quick page buttons */}
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Quick page buttons - fewer on mobile */}
+            {Array.from({ length: isMobile ? Math.min(3, totalPages) : Math.min(5, totalPages) }, (_, i) => {
               let page;
-              if (totalPages <= 5) {
+              const visiblePages = isMobile ? 3 : 5;
+              if (totalPages <= visiblePages) {
                 page = i + 1;
-              } else if (currentPage <= 3) {
+              } else if (currentPage <= Math.ceil(visiblePages / 2)) {
                 page = i + 1;
-              } else if (currentPage >= totalPages - 2) {
-                page = totalPages - 4 + i;
+              } else if (currentPage >= totalPages - Math.floor(visiblePages / 2)) {
+                page = totalPages - visiblePages + 1 + i;
               } else {
-                page = currentPage - 2 + i;
+                page = currentPage - Math.floor(visiblePages / 2) + i;
               }
               return (
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
-                  className={`w-8 h-8 rounded-lg font-sweet text-sm transition-all ${
+                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg font-sweet text-sm transition-all ${
                     currentPage === page
-                      ? "bg-rose-400 text-white"
+                      ? "bg-rose-400 text-white shadow-md"
                       : isDarkMode
                       ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -664,25 +736,32 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
           <button
             onClick={() => setCurrentPage(totalPages)}
             disabled={currentPage === totalPages}
-            className={`font-sweet text-sm disabled:opacity-30 ${
-              isDarkMode ? "text-gray-300" : "text-gray-600"
+            className={`font-sweet text-xs sm:text-sm disabled:opacity-30 px-2 py-1.5 rounded-lg ${
+              isDarkMode ? "text-gray-300 hover:bg-gray-700" : "text-gray-600 hover:bg-gray-100"
             }`}
           >
-            Last ⏭
+            <span className="hidden sm:inline">Last</span> ⏭
           </button>
         </div>
       </div>
 
-      {/* Keyboard Shortcuts Help */}
+      {/* Keyboard Shortcuts Help - Hidden on mobile */}
       <div
-        className={`absolute bottom-16 right-4 text-xs font-sweet ${
+        className={`absolute bottom-16 right-4 text-xs font-sweet hidden lg:block ${
           isDarkMode ? "text-gray-500" : "text-gray-400"
         }`}
       >
-        <span className="hidden lg:inline">
-          ← → Navigate • Ctrl+/- Zoom • Ctrl+R Rotate • Esc Close
-        </span>
+        ← → Navigate • Ctrl+/- Zoom • Ctrl+R Rotate • Esc Close
       </div>
+
+      {/* Mobile Swipe Hint - Show only on first view */}
+      {isMobile && !isLoading && (
+        <div className={`absolute bottom-20 left-1/2 -translate-x-1/2 text-xs font-sweet px-3 py-1.5 rounded-full animate-pulse ${
+          isDarkMode ? "bg-gray-700 text-gray-400" : "bg-gray-100 text-gray-500"
+        }`}>
+          💡 Use zoom 🔍 to read better
+        </div>
+      )}
     </div>
   );
 };

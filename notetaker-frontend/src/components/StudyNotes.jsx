@@ -116,6 +116,9 @@ const StudyNotes = ({ onPdfViewChange }) => {
   });
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState(""); // Current upload status message
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [totalFiles, setTotalFiles] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState("grid"); // grid or list
   const fileInputRef = useRef(null);
@@ -245,9 +248,12 @@ const StudyNotes = ({ onPdfViewChange }) => {
 
     setIsUploading(true);
     setUploadProgress(0);
+    setTotalFiles(files.length);
+    setCurrentFileIndex(0);
 
     const sectionId = selectedSection._id || selectedSection.id;
 
+    // Process files sequentially for proper progress tracking
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (file.type !== "application/pdf") {
@@ -255,47 +261,74 @@ const StudyNotes = ({ onPdfViewChange }) => {
         continue;
       }
 
-      // Read file as base64
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const pdfData = {
-          name: file.name.replace(".pdf", ""),
-          fileName: file.name,
-          sectionId: sectionId,
-          fileData: event.target.result,
-          size: (file.size / 1024 / 1024).toFixed(2) + " MB",
-        };
+      setCurrentFileIndex(i + 1);
+      setUploadStatus(`Reading ${file.name}...`);
+      setUploadProgress(0);
 
-        try {
-          const response = await studyApi.uploadPdf(pdfData);
-          if (response.success) {
-            setPdfs((prev) => [...prev, response.data]);
+      // Read file as base64
+      const base64Data = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target.result);
+        reader.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const readProgress = Math.round((event.loaded / event.total) * 30); // 0-30% for reading
+            setUploadProgress(readProgress);
           }
-        } catch (error) {
-          console.error("Failed to upload PDF:", error);
-          // Fallback to local storage
-          const newPdf = {
-            id: Date.now() + i,
-            ...pdfData,
-            uploadedAt: new Date().toISOString(),
-            lastReadAt: null,
-            lastPage: 1,
-            totalPages: null,
-            isFavorite: false,
-          };
-          setPdfs((prev) => [...prev, newPdf]);
-          localStorage.setItem("sradha-study-pdfs", JSON.stringify([...pdfs, newPdf]));
-        }
-        
-        setUploadProgress(((i + 1) / files.length) * 100);
+        };
+        reader.readAsDataURL(file);
+      });
+
+      setUploadStatus(`Uploading ${file.name}...`);
+
+      const pdfData = {
+        name: file.name.replace(".pdf", ""),
+        fileName: file.name,
+        sectionId: sectionId,
+        fileData: base64Data,
+        size: (file.size / 1024 / 1024).toFixed(2) + " MB",
       };
-      reader.readAsDataURL(file);
+
+      try {
+        const response = await studyApi.uploadPdf(pdfData, (progress) => {
+          // 30-100% for uploading
+          setUploadProgress(30 + Math.round(progress * 0.7));
+        });
+        
+        if (response.success) {
+          setPdfs((prev) => [...prev, response.data]);
+          setUploadStatus(`✓ ${file.name} uploaded!`);
+        }
+      } catch (error) {
+        console.error("Failed to upload PDF:", error);
+        setUploadStatus(`⚠️ ${file.name} - saving locally...`);
+        // Fallback to local storage
+        const newPdf = {
+          id: Date.now() + i,
+          ...pdfData,
+          uploadedAt: new Date().toISOString(),
+          lastReadAt: null,
+          lastPage: 1,
+          totalPages: null,
+          isFavorite: false,
+        };
+        setPdfs((prev) => [...prev, newPdf]);
+        localStorage.setItem("sradha-study-pdfs", JSON.stringify([...pdfs, newPdf]));
+      }
+
+      // Brief pause between files
+      if (i < files.length - 1) {
+        await new Promise((r) => setTimeout(r, 300));
+      }
     }
 
+    setUploadStatus("All files uploaded! 🎉");
     setTimeout(() => {
       setIsUploading(false);
       setUploadProgress(0);
-    }, 500);
+      setUploadStatus("");
+      setCurrentFileIndex(0);
+      setTotalFiles(0);
+    }, 1500);
   };
 
   const addSection = async () => {
@@ -656,16 +689,41 @@ const StudyNotes = ({ onPdfViewChange }) => {
 
             {/* Upload Progress */}
             {isUploading && (
-              <div className="mt-4">
-                <div className="h-2 bg-rose-100 rounded-full overflow-hidden">
+              <div className="mt-4 glass rounded-xl p-4">
+                {/* File counter */}
+                {totalFiles > 1 && (
+                  <p className="font-sweet text-xs text-gray-500 mb-2 text-center">
+                    File {currentFileIndex} of {totalFiles}
+                  </p>
+                )}
+                
+                {/* Progress bar */}
+                <div className="h-3 bg-rose-100 rounded-full overflow-hidden shadow-inner">
                   <div
-                    className="h-full bg-gradient-to-r from-rose-400 to-pink-400 transition-all duration-300"
+                    className="h-full bg-gradient-to-r from-rose-400 via-pink-400 to-rose-500 transition-all duration-300 relative"
                     style={{ width: `${uploadProgress}%` }}
-                  />
+                  >
+                    {/* Animated shine effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shine" />
+                  </div>
                 </div>
-                <p className="font-sweet text-sm text-rose-400 mt-2 text-center">
-                  Uploading... {Math.round(uploadProgress)}%
-                </p>
+                
+                {/* Progress percentage */}
+                <div className="flex justify-between items-center mt-2">
+                  <p className="font-sweet text-sm text-rose-400">
+                    {uploadStatus || `Uploading... ${Math.round(uploadProgress)}%`}
+                  </p>
+                  <span className="font-sweet text-sm font-semibold text-rose-500">
+                    {Math.round(uploadProgress)}%
+                  </span>
+                </div>
+                
+                {/* Animated loading indicator */}
+                <div className="flex justify-center gap-1 mt-3">
+                  <span className="w-2 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-2 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
               </div>
             )}
           </div>
