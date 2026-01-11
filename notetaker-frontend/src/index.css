@@ -508,6 +508,7 @@ body {
 .react-pdf__Page__canvas {
   display: block;
   margin: 0 auto;
+  max-width: 100% !important;
 }
 
 .react-pdf__Page__textContent {
@@ -516,6 +517,22 @@ body {
 
 .react-pdf__Page__annotations {
   display: none !important;
+}
+
+/* Mobile PDF full width */
+@media (max-width: 767px) {
+  .react-pdf__Document {
+    width: 100% !important;
+  }
+  
+  .react-pdf__Page {
+    width: 100% !important;
+  }
+  
+  .react-pdf__Page__canvas {
+    width: 100% !important;
+    height: auto !important;
+  }
 }
 
 /* Loading bar animation for PDF opening */

@@ -29,17 +29,21 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
   // Detect mobile/desktop and calculate page width
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
       if (pageContainerRef.current) {
         const containerWidth = pageContainerRef.current.clientWidth;
-        setPageWidth(containerWidth - (isMobile ? 16 : 32));
+        // On mobile, use full width with minimal padding
+        setPageWidth(mobile ? containerWidth : containerWidth - 32);
       }
     };
     
+    // Initial calculation after a small delay to ensure container is rendered
+    setTimeout(handleResize, 100);
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [isMobile]);
+  }, []);
 
   // Handle scroll to change pages
   useEffect(() => {
@@ -550,10 +554,10 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
       <div
         ref={pageContainerRef}
         className={`flex-1 overflow-auto ${
-          isDarkMode ? "bg-gray-900" : "bg-gray-200"
+          isDarkMode ? "bg-gray-900" : "bg-gray-100"
         }`}
       >
-        <div className="flex justify-center py-2 sm:py-4 min-h-full">
+        <div className="flex justify-center py-0 sm:py-4 min-h-full">
           {isLoading && !loadError && (
             <div className="flex flex-col items-center justify-center gap-4 py-20 absolute inset-0 z-10">
               <div className="w-16 h-16 border-4 border-rose-200 border-t-rose-400 rounded-full animate-spin" />
@@ -593,12 +597,12 @@ const PDFViewer = ({ pdf, onClose, onProgressUpdate }) => {
               onLoadError={onDocumentLoadError}
               loading=""
               error=""
-              className="flex flex-col items-center"
+              className={`flex flex-col items-center ${isMobile ? 'w-full' : ''}`}
             >
               <Page
                 pageNumber={currentPage}
                 width={pageWidth ? pageWidth * zoom : undefined}
-                className={`shadow-2xl rounded-lg overflow-hidden ${isDarkMode ? "" : ""}`}
+                className={`${isMobile ? 'w-full' : 'shadow-2xl rounded-lg'} overflow-hidden`}
                 renderTextLayer={!isMobile}
                 renderAnnotationLayer={!isMobile}
                 loading={
